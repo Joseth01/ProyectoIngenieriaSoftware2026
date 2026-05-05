@@ -1,2 +1,40 @@
-/* For information on how to create your own theme, please refer to:
-http://ionicframework.com/docs/theming/ */
+/* 🌿 UX SIMPLE - APLICACIÓN */
+
+:root {
+  --ion-color-primary: #2e7d32;
+  --ion-color-primary-rgb: 46, 125, 50;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-shade: #276c2c;
+  --ion-color-primary-tint: #438a47;
+  
+  /* 🚨 PARCHE ANTI-PANTALLA NEGRA */
+  --ion-background-color: #ffffff !important;
+}
+
+/* Fuerza visibilidad global */
+html, body, ion-app, ion-content, ion-page {
+  background-color: #ffffff !important;
+  --background: #ffffff !important;
+}
+
+/* Evita que Ionic oculte la página por error */
+.ion-page-invisible {
+  opacity: 1 !important;
+  display: block !important;
+}
+
+ion-content {
+  --background: #ffffff !important;
+}
+
+/* Estilos de la Tab Bar */
+ion-tab-bar {
+  border-top: 1px solid #ddd;
+  --background: #ffffff;
+  height: 70px;
+}
+
+ion-tab-button {
+  --color: #777;
+  --color-selected: #2e7d32;
+} 
