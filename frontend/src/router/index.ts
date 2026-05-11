@@ -12,6 +12,7 @@ const routes: Array<RouteRecordRaw> = [
       { path: 'dashboard', component: () => import('../views/DashboardPage.vue') },
       { path: 'finca', component: () => import('../views/FincaPage.vue') },
       { path: 'animales', component: () => import('../views/AnimalesPage.vue') },
+      { path: 'pesajes', component: () => import('../views/PesajesPage.vue') },
       { path: 'perfil', component: () => import('../views/PerfilPage.vue') },
       { path: 'reportes', component: () => import('../views/ReportesPage.vue') },
       { path: 'ayuda', component: () => import('../views/AyudaPage.vue') }

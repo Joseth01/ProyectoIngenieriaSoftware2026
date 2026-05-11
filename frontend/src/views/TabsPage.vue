@@ -29,6 +29,11 @@
             <span>Configuración de la Finca</span>
           </div>
           
+          <div class="s-item" :class="{ 'active-s': currentRoute === '/tabs/pesajes' }" @click="navegar('/tabs/pesajes')">
+            <ion-icon :icon="readerOutline" class="m-icon"></ion-icon>
+            <span>Pesajes</span>
+          </div>
+          
           <!-- SECCIONES OCULTAS (COMENTADAS) -->
           <!-- 
           <div class="s-item" :class="{ 'active-s': currentRoute === '/tabs/personal' }" @click="navegar('/tabs/personal')">
@@ -87,7 +92,7 @@ import {
 } from '@ionic/vue';
 import { 
   gridOutline, settingsOutline, peopleOutline, briefcaseOutline, 
-  documentTextOutline, helpCircleOutline, logOutOutline 
+  documentTextOutline, helpCircleOutline, logOutOutline, readerOutline 
 } from 'ionicons/icons';
 
 const isMenuOpen = ref(false);
