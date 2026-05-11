@@ -10,7 +10,7 @@ class PesajeController extends Controller
 {
     public function listar(): JsonResponse
     {
-        $pesajes = Pesaje::all();
+        $pesajes = Pesaje::with('animal')->orderBy('fecha', 'desc')->get();
 
         return response()->json([
             'exito' => true,
@@ -20,7 +20,7 @@ class PesajeController extends Controller
 
     public function obtenerPorAnimal(int $animal_id): JsonResponse
     {
-        $pesajes = Pesaje::where('animal_id', $animal_id)->get();
+        $pesajes = Pesaje::with('animal')->where('animal_id', $animal_id)->orderBy('fecha', 'desc')->get();
 
         return response()->json([
             'exito' => true,
