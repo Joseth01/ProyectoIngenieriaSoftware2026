@@ -2,65 +2,114 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\AnimalService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use App\Models\Animal;
 
+/**
+ * ANTES: llamaba Animal::where(), Animal::findOrFail(), new Brahman() directamente.
+ * DESPUÉS: delega toda la lógica a AnimalService, que usa IAnimalRepository (Repository)
+ *          e IRazaFactory (Factory) inyectados por el Service Container de Laravel.
+ *
+ * El controlador solo maneja HTTP — validación de entrada y formato de respuesta.
+ */
 class AnimalController extends Controller
 {
-    public function crear(Request $request)
-{
-    $animal = Animal::create($request->all());
+    public function __construct(private readonly AnimalService $animalService) {}
 
-    return response()->json($animal, 201);
-}
+    public function crear(Request $request): JsonResponse
+    {
+        $request->validate([
+            'numero_arete'    => 'required|string|unique:animales,numero_arete',
+            'nombre'          => 'required|string|max:255',
+            'raza_id'         => 'required|exists:razas,id',
+            'nombre_raza'     => 'required|string',
+            'fecha_nacimiento' => 'required|date',
+            'finca_id'        => 'required|exists:fincas,id',
+        ]);
 
-public function listar()
-{
-    $animales = Animal::all();
-    return response()->json($animales);
-}
+        $animal = $this->animalService->registrar($request->all());
 
-public function buscarPorArete($arete)
-{
-    $animal = Animal::where('numero_arete', $arete)->first();
-
-    if (!$animal) {
         return response()->json([
-            'message' => 'Animal no encontrado'
-        ], 404);
+            'exito'  => true,
+            'mensaje' => 'Animal registrado correctamente',
+            'datos'  => $animal,
+        ], 201);
     }
 
-    return response()->json($animal);
-}
+    public function listar(): JsonResponse
+    {
+        $animales = $this->animalService->listarTodos();
 
-public function historial($id)
-{
-    $animal = Animal::with('pesajes')->findOrFail($id);
-    return response()->json($animal);
-}
+        return response()->json([
+            'exito' => true,
+            'datos' => $animales,
+        ]);
+    }
 
-public function obtener($id)
-{
-    $animal = Animal::findOrFail($id);
-    return response()->json($animal);
-}
+    public function buscarPorArete(string $arete): JsonResponse
+    {
+        $animal = $this->animalService->buscarPorArete($arete);
 
-public function actualizar(Request $request, $id)
-{
-    $animal = Animal::findOrFail($id);
-    $animal->update($request->all());
+        if (!$animal) {
+            return response()->json(['message' => 'Animal no encontrado'], 404);
+        }
 
-    return response()->json($animal);
-}
+        return response()->json(['exito' => true, 'datos' => $animal]);
+    }
 
-public function eliminar($id)
-{
-    $animal = Animal::findOrFail($id);
-    $animal->estado = 'inactivo';
-    $animal->save();
+    public function historial(int $id): JsonResponse
+    {
+        $animal = $this->animalService->historial($id);
 
-    return response()->json([
-        'message' => 'Animal desactivado correctamente'
-    ]);
-}
+        if (!$animal) {
+            return response()->json(['message' => 'Animal no encontrado'], 404);
+        }
+
+        return response()->json(['exito' => true, 'datos' => $animal]);
+    }
+
+    public function obtener(int $id): JsonResponse
+    {
+        $animales = $this->animalService->listarTodos();
+        $animal   = collect($animales)->firstWhere('id', $id);
+
+        if (!$animal) {
+            return response()->json(['message' => 'Animal no encontrado'], 404);
+        }
+
+        return response()->json(['exito' => true, 'datos' => $animal]);
+    }
+
+    public function actualizar(Request $request, int $id): JsonResponse
+    {
+        $animal = $this->animalService->historial($id);
+
+        if (!$animal) {
+            return response()->json(['message' => 'Animal no encontrado'], 404);
+        }
+
+        $animal->update($request->only(['nombre', 'fecha_nacimiento', 'estado']));
+
+        return response()->json([
+            'exito'  => true,
+            'mensaje' => 'Animal actualizado correctamente',
+            'datos'  => $animal,
+        ]);
+    }
+
+    public function eliminar(int $id): JsonResponse
+    {
+        $animal = $this->animalService->historial($id);
+
+        if (!$animal) {
+            return response()->json(['message' => 'Animal no encontrado'], 404);
+        }
+
+        $animal->estado = 'inactivo';
+        $this->animalService->historial($id); // refresca
+        $animal->save();
+
+        return response()->json(['message' => 'Animal desactivado correctamente']);
+    }
 }

@@ -36,6 +36,8 @@ Route::prefix('reportes')->group(function () {
 
     Route::get('/', [ReporteController::class, 'listar']);
     Route::get('/usuario/{user_id}', [ReporteController::class, 'obtenerPorUsuario']);
+    // Ruta nueva — usa ReporteService con IAnimalRepository + IRazaFactory
+    Route::get('/finca/{finca_id}', [ReporteController::class, 'reportePorFinca']);
     Route::post('/', [ReporteController::class, 'crear']);
     Route::get('/{id}', [ReporteController::class, 'obtener']);
     Route::put('/{id}', [ReporteController::class, 'actualizar']);
