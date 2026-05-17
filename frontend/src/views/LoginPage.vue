@@ -6,6 +6,7 @@
         <div class="deco deco-1"></div>
         <div class="deco deco-2"></div>
 
+<<<<<<< HEAD
         <!-- logo -->
         <div class="logo-wrap">
           <svg viewBox="0 0 50 50" fill="none" class="logo-svg">
@@ -63,6 +64,40 @@
         </div>
 
         <p class="footer-note">BovWeight CR · Sistema ganadero inteligente</p>
+=======
+    <ion-content fullscreen class="login-content">
+      <div class="login-wrapper">
+        <div class="login-card">
+          <h1>Bienvenido</h1>
+          <p>Accede rápido para ver tu finca y registrar pesajes.</p>
+
+          <ion-item>
+            <ion-label position="stacked">Correo</ion-label>
+            <ion-input
+              v-model="email"
+              type="email"
+              placeholder="tucorreo@ejemplo.com"
+            />
+          </ion-item>
+
+          <ion-item>
+            <ion-label position="stacked">Contraseña</ion-label>
+            <ion-input
+              v-model="password"
+              type="password"
+              placeholder="********"
+            />
+          </ion-item>
+
+          <ion-button expand="block" size="large" @click="login">
+            Ingresar
+          </ion-button>
+
+          <p class="login-note">
+            Solo necesitas un usuario para comenzar. La app está pensada para uso rural sencillo.
+          </p>
+        </div>
+>>>>>>> 974dd05e0f82804f83b4edcd31f67720b74723d7
       </div>
     </ion-content>
   </ion-page>
@@ -71,7 +106,21 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+<<<<<<< HEAD
 import { IonPage, IonContent } from '@ionic/vue';
+=======
+import {
+  IonPage,
+  IonHeader,
+  IonToolbar,
+  IonTitle,
+  IonContent,
+  IonItem,
+  IonLabel,
+  IonInput,
+  IonButton
+} from '@ionic/vue';
+>>>>>>> 974dd05e0f82804f83b4edcd31f67720b74723d7
 
 const router = useRouter();
 const email    = ref('');
@@ -108,6 +157,7 @@ onMounted(() => {
 
 <style scoped>
 .login-content {
+<<<<<<< HEAD
   --background: transparent;
 }
 
@@ -257,5 +307,54 @@ onMounted(() => {
   font-size: .6875rem;
   color: rgba(255,255,255,.4);
   letter-spacing: .04em;
+=======
+  --background: #f7fafc;
+}
+
+.login-wrapper {
+  min-height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  background: white;
+  border-radius: 24px;
+  padding: 30px;
+  box-shadow: 0 16px 45px rgba(15, 23, 42, 0.08);
+}
+
+.login-card h1 {
+  text-align: center;
+  margin-bottom: 10px;
+  font-size: 2rem;
+  color: #0f172a;
+}
+
+.login-card p {
+  text-align: center;
+  margin-bottom: 25px;
+  color: #475569;
+}
+
+.login-card ion-item {
+  margin-bottom: 18px;
+  --background: transparent;
+}
+
+.login-card ion-button {
+  margin-top: 15px;
+  --border-radius: 14px;
+}
+
+.login-note {
+  margin-top: 20px;
+  font-size: 0.9rem;
+  color: #64748b;
+>>>>>>> 974dd05e0f82804f83b4edcd31f67720b74723d7
 }
 </style>
