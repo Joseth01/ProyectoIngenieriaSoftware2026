@@ -16,7 +16,8 @@ const routes: Array<RouteRecordRaw> = [
       { path: 'perfil', component: () => import('../views/PerfilPage.vue') },
       { path: 'reportes', component: () => import('../views/ReportesPage.vue') },
       { path: 'ayuda', component: () => import('../views/AyudaPage.vue') },
-      { path: 'pesaje-vivo', component: () => import('../views/PesajeVivoPage.vue') }
+      /*{path: "pesaje-vivo",component: () => import("../views/PesajesVivoPage.vue")}
+         Falta esta vista                                */
     ]
   },
   { path: '/login', component: () => import('../views/LoginPage.vue') }
