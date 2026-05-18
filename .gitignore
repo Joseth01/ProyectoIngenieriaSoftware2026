@@ -1,0 +1,24 @@
+# ======================
+# BACKEND (Laravel)
+# ======================
+/backend/vendor/
+/backend/node_modules/
+/backend/storage/*.key
+/backend/.env
+
+# ======================
+# FRONTEND (Ionic/Vue)
+# ======================
+/frontend/node_modules/
+/frontend/dist/
+/frontend/build/
+
+# ======================
+# GENERAL
+# ======================
+node_modules/
+dist/
+build/
+.env
+*.log
+.vscode/
