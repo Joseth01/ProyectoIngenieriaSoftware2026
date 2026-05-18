@@ -7,7 +7,7 @@ use App\Http\Controllers\FincaController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\ImagenController;
 use App\Http\Controllers\AnimalController;
-
+use App\Http\Controllers\UsuarioController;
 
 // RUTAS DE PESAJE
 Route::prefix('pesajes')->group(function () {
@@ -37,6 +37,8 @@ Route::prefix('reportes')->group(function () {
 
     Route::get('/', [ReporteController::class, 'listar']);
     Route::get('/usuario/{user_id}', [ReporteController::class, 'obtenerPorUsuario']);
+    // Ruta nueva — usa ReporteService con IAnimalRepository + IRazaFactory
+    Route::get('/finca/{finca_id}', [ReporteController::class, 'reportePorFinca']);
     Route::post('/', [ReporteController::class, 'crear']);
     Route::get('/{id}', [ReporteController::class, 'obtener']);
     Route::put('/{id}', [ReporteController::class, 'actualizar']);
@@ -67,13 +69,4 @@ Route::prefix('animales')->group(function () {
     Route::put('/{id}', [AnimalController::class, 'actualizar']);
     Route::delete('/{id}', [AnimalController::class, 'eliminar']);
 
-});
-
-// AUTENTICACIÓN
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
-
-Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/profile', [AuthController::class, 'profile']);
-    Route::post('/logout', [AuthController::class, 'logout']);
 });
