@@ -6,7 +6,7 @@ use App\Http\Controllers\FincaController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\ImagenController;
 use App\Http\Controllers\AnimalController;
-
+use App\Http\Controllers\UsuarioController;
 
 // RUTAS DE PESAJE
 Route::prefix('pesajes')->group(function () {
@@ -67,5 +67,15 @@ Route::prefix('animales')->group(function () {
     Route::get('/{id}', [AnimalController::class, 'obtener']);
     Route::put('/{id}', [AnimalController::class, 'actualizar']);
     Route::delete('/{id}', [AnimalController::class, 'eliminar']);
+
+});
+//Rutas de USUARIOS (registro, login, perfil, logout)
+Route::prefix('usuarios')->group(function () {
+
+    Route::post('/registro', [UsuarioController::class, 'registrar']);
+    Route::post('/login', [UsuarioController::class, 'login']);
+
+    Route::get('/perfil/{id}', [UsuarioController::class, 'perfil']);
+    Route::post('/logout', [UsuarioController::class, 'logout']);
 
 });

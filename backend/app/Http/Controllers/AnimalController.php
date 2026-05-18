@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\ApiResponse;
 use App\Services\AnimalService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -41,75 +42,110 @@ class AnimalController extends Controller
     {
         $animales = $this->animalService->listarTodos();
 
-        return response()->json([
-            'exito' => true,
-            'datos' => $animales,
-        ]);
+        return ApiResponse::success(
+            'Animales obtenidos correctamente',
+             $animales
+        );
     }
 
     public function buscarPorArete(string $arete): JsonResponse
     {
-        $animal = $this->animalService->buscarPorArete($arete);
+      $animal = $this->animalService->buscarPorArete($arete);
 
-        if (!$animal) {
-            return response()->json(['message' => 'Animal no encontrado'], 404);
-        }
+    if (!$animal) {
+        return ApiResponse::error(
+            'Animal no encontrado',
+            [],
+            404
+        );
+    }
 
-        return response()->json(['exito' => true, 'datos' => $animal]);
+    return ApiResponse::success(
+        'Animal encontrado correctamente',
+        $animal
+    );
     }
 
     public function historial(int $id): JsonResponse
     {
-        $animal = $this->animalService->historial($id);
+         $animal = $this->animalService->historial($id);
 
-        if (!$animal) {
-            return response()->json(['message' => 'Animal no encontrado'], 404);
-        }
+    if (!$animal) {
+        return ApiResponse::error(
+            'Animal no encontrado',
+            [],
+            404
+        );
+    }
 
-        return response()->json(['exito' => true, 'datos' => $animal]);
+    return ApiResponse::success(
+        'Historial obtenido correctamente',
+        $animal
+    );
     }
 
     public function obtener(int $id): JsonResponse
     {
-        $animales = $this->animalService->listarTodos();
-        $animal   = collect($animales)->firstWhere('id', $id);
+         $animales = $this->animalService->listarTodos();
+    $animal   = collect($animales)->firstWhere('id', $id);
 
-        if (!$animal) {
-            return response()->json(['message' => 'Animal no encontrado'], 404);
-        }
+    if (!$animal) {
+        return ApiResponse::error(
+            'Animal no encontrado',
+            [],
+            404
+        );
+    }
 
-        return response()->json(['exito' => true, 'datos' => $animal]);
+    return ApiResponse::success(
+        'Animal obtenido correctamente',
+        $animal
+    );
     }
 
     public function actualizar(Request $request, int $id): JsonResponse
     {
         $animal = $this->animalService->historial($id);
 
-        if (!$animal) {
-            return response()->json(['message' => 'Animal no encontrado'], 404);
-        }
+    if (!$animal) {
+        return ApiResponse::error(
+            'Animal no encontrado',
+            [],
+            404
+        );
+    }
 
-        $animal->update($request->only(['nombre', 'fecha_nacimiento', 'estado']));
+    $animal->update(
+        $request->only([
+            'nombre',
+            'fecha_nacimiento',
+            'estado'
+        ])
+    );
 
-        return response()->json([
-            'exito'  => true,
-            'mensaje' => 'Animal actualizado correctamente',
-            'datos'  => $animal,
-        ]);
+    return ApiResponse::success(
+        'Animal actualizado correctamente',
+        $animal
+    );
     }
 
     public function eliminar(int $id): JsonResponse
     {
         $animal = $this->animalService->historial($id);
 
-        if (!$animal) {
-            return response()->json(['message' => 'Animal no encontrado'], 404);
-        }
+    if (!$animal) {
+        return ApiResponse::error(
+            'Animal no encontrado',
+            [],
+            404
+        );
+    }
 
-        $animal->estado = 'inactivo';
-        $this->animalService->historial($id); // refresca
-        $animal->save();
+    $animal->estado = 'inactivo';
+    $animal->save();
 
-        return response()->json(['message' => 'Animal desactivado correctamente']);
+    return ApiResponse::success(
+        'Animal desactivado correctamente'
+    );
     }
 }

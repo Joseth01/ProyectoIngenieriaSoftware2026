@@ -14,6 +14,7 @@ use App\Observers\WebhookSenasa;
 use App\Services\EstimadorPesoService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use App\Helpers\ApiResponse;
 
 /**
  * ANTES: Pesaje::create($datos) directo — sin observers, sin estimación estratégica.
@@ -32,14 +33,20 @@ class PesajeController extends Controller
     {
         $pesajes = Pesaje::all();
 
-        return response()->json(['exito' => true, 'datos' => $pesajes]);
+        return ApiResponse::success(
+            'Pesajes obtenidos correctamente',
+         $pesajes   
+         );
     }
 
     public function obtenerPorAnimal(int $animal_id): JsonResponse
     {
         $pesajes = Pesaje::where('animal_id', $animal_id)->get();
 
-        return response()->json(['exito' => true, 'datos' => $pesajes]);
+        return ApiResponse::success(
+        'Pesajes del animal obtenidos correctamente',
+        $pesajes
+        );
     }
 
     public function crear(Request $request): JsonResponse
@@ -85,21 +92,31 @@ class PesajeController extends Controller
 
         $pesaje = $subject->registrar($pesaje); // persiste Y notifica
 
-        return response()->json([
-            'exito'   => true,
-            'mensaje' => 'Pesaje registrado correctamente',
-            'datos'   => array_merge(
-                $pesaje->toArray(),
-                ['estimacion' => $resultado->toArray()]
+        return ApiResponse::success(
+            'Pesaje registrado correctamente',
+            array_merge(
+            $pesaje->toArray(),
+            ['estimacion' => $resultado->toArray()]
             ),
-        ], 201);
+             201
+        );
     }
 
     public function obtener(int $id): JsonResponse
     {
-        $pesaje = Pesaje::findOrFail($id);
+        $pesaje = Pesaje::find($id);
 
-        return response()->json(['exito' => true, 'datos' => $pesaje]);
+        if (!$pesaje) {
+        return ApiResponse::error(
+            'Pesaje no encontrado',
+            [],
+         404
+        );
+        }
+        return ApiResponse::success(
+        'Pesaje obtenido correctamente',
+         $pesaje
+        );
     }
 
     public function actualizar(Request $request, int $id): JsonResponse
@@ -115,11 +132,10 @@ class PesajeController extends Controller
 
         $pesaje->update($datos);
 
-        return response()->json([
-            'exito'  => true,
-            'mensaje' => 'Pesaje actualizado correctamente',
-            'datos'  => $pesaje,
-        ]);
+        return ApiResponse::success(
+        'Pesaje actualizado correctamente',
+            $pesaje
+        );
     }
 
     public function eliminar(int $id): JsonResponse
@@ -127,6 +143,8 @@ class PesajeController extends Controller
         $pesaje = Pesaje::findOrFail($id);
         $pesaje->delete();
 
-        return response()->json(['exito' => true, 'mensaje' => 'Pesaje eliminado correctamente']);
+        return ApiResponse::success(
+        'Pesaje eliminado correctamente'
+        );
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Imagen;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use App\Helpers\ApiResponse;
 
 class ImagenController extends Controller
 {
@@ -12,20 +13,20 @@ class ImagenController extends Controller
     {
         $imagenes = Imagen::all();
 
-        return response()->json([
-            'exito' => true,
-            'datos' => $imagenes
-        ]);
+        return ApiResponse::success(
+            'Imágenes obtenidas correctamente',
+            $imagenes
+        );
     }
 
     public function obtenerPorAnimal(int $animal_id): JsonResponse
     {
         $imagenes = Imagen::where('animal_id', $animal_id)->get();
 
-        return response()->json([
-            'exito' => true,
-            'datos' => $imagenes
-        ]);
+        return ApiResponse::success(
+            'Imágenes del animal obtenidas correctamente',
+            $imagenes
+        );
     }
 
     public function crear(Request $request): JsonResponse
@@ -34,56 +35,76 @@ class ImagenController extends Controller
 
         $imagen = Imagen::create($datos);
 
-        return response()->json([
-            'exito' => true,
-            'mensaje' => 'Imagen creada correctamente',
-            'datos' => $imagen
-        ], 201);
-    }//No estoy segura si es el metodo correcto, ya que no se si la imagen se va a subir
-    //  al servidor o se va a guardar solo la url, si se va a subir la imagen, entonces se
-    //  tendria que usar el metodo store() para guardar la imagen en el servidor y luego guardar
-    //  la url en la base de datos y si se va a guardar solo la url, entonces el metodo crear() estaria correcto
+        return ApiResponse::success(
+            'Imagen creada correctamente',
+            $imagen,
+            201
+        );
+    }
 
     public function obtener(int $id): JsonResponse
     {
-        $imagen = Imagen::findOrFail($id);
+        $imagen = Imagen::find($id);
 
-        return response()->json([
-            'exito' => true,
-            'datos' => $imagen
-        ]);
+        if (!$imagen) {
+            return ApiResponse::error(
+                'Imagen no encontrada',
+                [],
+                404
+            );
+        }
+
+        return ApiResponse::success(
+            'Imagen obtenida correctamente',
+            $imagen
+        );
     }
 
     public function actualizar(Request $request, int $id): JsonResponse
     {
-        $imagen = Imagen::findOrFail($id);
+        $imagen = Imagen::find($id);
+
+        if (!$imagen) {
+            return ApiResponse::error(
+                'Imagen no encontrada',
+                [],
+                404
+            );
+        }
 
         $datos = $this->validarDatos($request);
 
         $imagen->update($datos);
 
-        return response()->json([
-            'exito' => true,
-            'mensaje' => 'Imagen actualizada correctamente',
-            'datos' => $imagen
-        ]);
+        return ApiResponse::success(
+            'Imagen actualizada correctamente',
+            $imagen
+        );
     }
 
     public function eliminar(int $id): JsonResponse
     {
-        $imagen = Imagen::findOrFail($id);
+        $imagen = Imagen::find($id);
+
+        if (!$imagen) {
+            return ApiResponse::error(
+                'Imagen no encontrada',
+                [],
+                404
+            );
+        }
+
         $imagen->delete();
 
-        return response()->json([
-            'exito' => true,
-            'mensaje' => 'Imagen eliminada correctamente'
-        ]);
+        return ApiResponse::success(
+            'Imagen eliminada correctamente'
+        );
     }
 
     private function validarDatos(Request $request): array
     {
         return $request->validate([
-            'animal_id' => 'required|exists:animals,id',
+            'animal_id' => 'required|exists:animales,id',
             'url' => 'required|string|url',
             'procesada' => 'nullable|boolean',
             'fecha' => 'required|date'
