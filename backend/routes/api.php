@@ -5,6 +5,8 @@ use App\Http\Controllers\PesajeController;
 use App\Http\Controllers\FincaController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\ImagenController;
+use App\Http\Controllers\AnimalController;
+use App\Http\Controllers\UsuarioController;
 
 // RUTAS DE PESAJE
 Route::prefix('pesajes')->group(function () {
@@ -34,6 +36,8 @@ Route::prefix('reportes')->group(function () {
 
     Route::get('/', [ReporteController::class, 'listar']);
     Route::get('/usuario/{user_id}', [ReporteController::class, 'obtenerPorUsuario']);
+    // Ruta nueva — usa ReporteService con IAnimalRepository + IRazaFactory
+    Route::get('/finca/{finca_id}', [ReporteController::class, 'reportePorFinca']);
     Route::post('/', [ReporteController::class, 'crear']);
     Route::get('/{id}', [ReporteController::class, 'obtener']);
     Route::put('/{id}', [ReporteController::class, 'actualizar']);
@@ -50,5 +54,28 @@ Route::prefix('imagenes')->group(function () {
     Route::get('/{id}', [ImagenController::class, 'obtener']);
     Route::put('/{id}', [ImagenController::class, 'actualizar']);
     Route::delete('/{id}', [ImagenController::class, 'eliminar']);
+
+});
+
+// RUTAS DE ANIMALES
+Route::prefix('animales')->group(function () {
+
+    Route::post('/', [AnimalController::class, 'crear']);
+    Route::get('/', [AnimalController::class, 'listar']);
+    Route::get('/arete/{arete}', [AnimalController::class, 'buscarPorArete']);
+    Route::get('/{id}/historial', [AnimalController::class, 'historial']);
+    Route::get('/{id}', [AnimalController::class, 'obtener']);
+    Route::put('/{id}', [AnimalController::class, 'actualizar']);
+    Route::delete('/{id}', [AnimalController::class, 'eliminar']);
+
+});
+//Rutas de USUARIOS (registro, login, perfil, logout)
+Route::prefix('usuarios')->group(function () {
+
+    Route::post('/registro', [UsuarioController::class, 'registrar']);
+    Route::post('/login', [UsuarioController::class, 'login']);
+
+    Route::get('/perfil/{id}', [UsuarioController::class, 'perfil']);
+    Route::post('/logout', [UsuarioController::class, 'logout']);
 
 });
