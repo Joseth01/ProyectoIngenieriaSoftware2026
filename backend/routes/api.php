@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PesajeController;
 use App\Http\Controllers\FincaController;
@@ -67,15 +68,5 @@ Route::prefix('animales')->group(function () {
     Route::get('/{id}', [AnimalController::class, 'obtener']);
     Route::put('/{id}', [AnimalController::class, 'actualizar']);
     Route::delete('/{id}', [AnimalController::class, 'eliminar']);
-
-});
-//Rutas de USUARIOS (registro, login, perfil, logout)
-Route::prefix('usuarios')->group(function () {
-
-    Route::post('/registro', [UsuarioController::class, 'registrar']);
-    Route::post('/login', [UsuarioController::class, 'login']);
-
-    Route::get('/perfil/{id}', [UsuarioController::class, 'perfil']);
-    Route::post('/logout', [UsuarioController::class, 'logout']);
 
 });
