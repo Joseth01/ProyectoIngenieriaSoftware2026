@@ -10,29 +10,34 @@ use App\Helpers\ApiResponse;
 
 class UsuarioController extends Controller
 {
-    // REGISTRO
     public function registrar(Request $request): JsonResponse
     {
         $datos = $request->validate([
             'name'     => 'required|string|max:255',
-            'email'    => 'required|email|unique:users',
-            'password' => 'required|min:6'
+            'email'    => 'required|email|unique:users,email',
+            'password' => 'required|min:6',
+            'rol'      => 'nullable|in:admin,ganadero,veterinario'
         ]);
 
         $user = User::create([
             'name'     => $datos['name'],
             'email'    => $datos['email'],
-            'password' => bcrypt($datos['password'])
+            'password' => $datos['password'],
+            'rol'      => $datos['rol'] ?? User::ROL_GANADERO
         ]);
+
+        $token = $user->createToken('auth_token')->plainTextToken;
 
         return ApiResponse::success(
             'Usuario registrado correctamente',
-            $user,
+            [
+                'usuario' => $user,
+                'token'   => $token
+            ],
             201
         );
     }
 
-    // LOGIN
     public function login(Request $request): JsonResponse
     {
         $datos = $request->validate([
@@ -50,36 +55,31 @@ class UsuarioController extends Controller
             );
         }
 
+        $token = $user->createToken('auth_token')->plainTextToken;
+
         return ApiResponse::success(
             'Login exitoso',
-            $user
+            [
+                'usuario' => $user,
+                'token'   => $token
+            ]
         );
     }
 
-    // PERFIL (por ID)
-    public function perfil($id): JsonResponse
+    public function perfil(Request $request): JsonResponse
     {
-        $user = User::find($id);
-
-        if (!$user) {
-            return ApiResponse::error(
-                'Usuario no encontrado',
-                [],
-                404
-            );
-        }
-
         return ApiResponse::success(
             'Perfil obtenido correctamente',
-            $user
+            $request->user()
         );
     }
 
-    // LOGOUT (simulado)
-    public function logout(): JsonResponse
+    public function logout(Request $request): JsonResponse
     {
+        $request->user()->currentAccessToken()?->delete();
+
         return ApiResponse::success(
-            'Logout simulado correctamente'
+            'Logout exitoso'
         );
     }
 }

@@ -72,10 +72,11 @@ Route::prefix('animales')->group(function () {
 });
 // RUTAS DE USUARIOS
 Route::prefix('usuarios')->group(function () {
-
     Route::post('/registro', [UsuarioController::class, 'registrar']);
     Route::post('/login', [UsuarioController::class, 'login']);
-    Route::get('/perfil/{id}', [UsuarioController::class, 'perfil']);
-    Route::post('/logout', [UsuarioController::class, 'logout']);
 
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/perfil', [UsuarioController::class, 'perfil']);
+        Route::post('/logout', [UsuarioController::class, 'logout']);
+    });
 });
