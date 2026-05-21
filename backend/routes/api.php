@@ -7,6 +7,11 @@ use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\ImagenController;
 use App\Http\Controllers\AnimalController;
 use App\Http\Controllers\UsuarioController;
+use App\Helpers\ApiResponse;
+use App\Models\Raza;
+
+// CATÁLOGO DE RAZAS (solo lectura)
+Route::get('razas', fn() => ApiResponse::success('Razas obtenidas', Raza::orderBy('nombre')->get()));
 
 // RUTAS DE PESAJE
 Route::prefix('pesajes')->group(function () {

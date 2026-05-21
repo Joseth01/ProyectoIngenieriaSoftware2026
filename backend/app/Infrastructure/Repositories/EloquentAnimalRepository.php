@@ -45,6 +45,6 @@ class EloquentAnimalRepository implements IAnimalRepositoryV2
 
     public function all(): array
     {
-        return Animal::with('raza')->get()->all();
+        return Animal::with(['raza', 'finca', 'pesajes'])->get()->all();
     }
 }

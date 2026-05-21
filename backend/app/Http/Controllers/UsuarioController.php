@@ -16,13 +16,15 @@ class UsuarioController extends Controller
         $datos = $request->validate([
             'name'     => 'required|string|max:255',
             'email'    => 'required|email|unique:users',
-            'password' => 'required|min:6'
+            'password' => 'required|min:6',
+            'rol'      => 'required|in:ganadero,veterinario',
         ]);
 
         $user = User::create([
             'name'     => $datos['name'],
             'email'    => $datos['email'],
-            'password' => bcrypt($datos['password'])
+            'password' => bcrypt($datos['password']),
+            'rol'      => $datos['rol'],
         ]);
 
         return ApiResponse::success(
