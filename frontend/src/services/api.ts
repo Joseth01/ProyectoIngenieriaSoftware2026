@@ -2,6 +2,15 @@ export const API_BASE = '/api';
 
 // ─── DTOs ──────────────────────────────────────────────────────────────────
 
+export type RolUsuario = 'ganadero' | 'veterinario';
+
+export interface UsuarioDto {
+  id: number;
+  name: string;
+  email: string;
+  rol: RolUsuario;
+}
+
 export interface RazaDto {
   id: number;
   nombre: string;
@@ -72,11 +81,31 @@ async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
     },
     ...options,
   });
+
+  // Always parse body first — needed for both success and error handling
+  const body = await res.json().catch(() => null);
+
   if (!res.ok) {
-    throw new Error(`API ${res.status}: ${res.statusText}`);
+    // 1. Mensaje propio del backend (ApiResponse::error)
+    // 2. Laravel validation errors (422): toma el primer error de campo
+    // 3. Mensaje genérico de Laravel (message)
+    // 4. Fallback con el status code
+    type ErrBody = { mensaje?: string; message?: string; errors?: Record<string, string[]> };
+    const b = body as ErrBody | null;
+    const validationMsg = b?.errors
+      ? Object.values(b.errors).flat()[0]
+      : undefined;
+    const msg = b?.mensaje ?? validationMsg ?? b?.message ?? `Error ${res.status}`;
+    throw new Error(msg);
   }
-  return res.json() as Promise<T>;
+
+  return body as T;
 }
+
+// ─── Razas ─────────────────────────────────────────────────────────────────
+
+export const getRazas = (): Promise<RazaDto[]> =>
+  fetchJson<ApiResponse<RazaDto[]>>('/razas').then(r => r.datos ?? []);
 
 // ─── Animales ──────────────────────────────────────────────────────────────
 
@@ -157,6 +186,28 @@ export const getReportesByUsuario = (userId: number): Promise<ReporteDto[]> =>
 
 export const crearReporte = (data: Partial<ReporteDto>): Promise<ReporteDto> =>
   fetchJson<ApiResponse<ReporteDto>>('/reportes', { method: 'POST', body: JSON.stringify(data) }).then(r => r.datos);
+
+// ─── Usuarios ──────────────────────────────────────────────────────────────
+
+export const registrarUsuario = (data: {
+  name: string;
+  email: string;
+  password: string;
+  rol: RolUsuario;
+}): Promise<UsuarioDto> =>
+  fetchJson<ApiResponse<UsuarioDto>>('/usuarios/registro', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }).then(r => r.datos);
+
+export const loginUsuario = (data: {
+  email: string;
+  password: string;
+}): Promise<UsuarioDto> =>
+  fetchJson<ApiResponse<UsuarioDto>>('/usuarios/login', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }).then(r => r.datos);
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
