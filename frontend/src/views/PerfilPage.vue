@@ -11,7 +11,7 @@
             <div class="logo-dot">🐄</div>
             <span class="logo-txt">BovWeight CR</span>
           </div>
-          <button class="icon-btn">⚙</button>
+          <button class="icon-btn" @click="router.push('/tabs/dashboard')">⚙</button>
         </div>
 
         <!-- Profile hero -->
@@ -21,7 +21,7 @@
             <div class="avatar-badge">✓</div>
           </div>
           <div class="profile-name">{{ user.name }}</div>
-          <div class="profile-role">Propietario Principal · Hacienda Las Palmas</div>
+          <div class="profile-role">{{ user.email }}</div>
           <div class="profile-stats">
             <div class="ps-card">
               <div class="ps-ico">🐄</div>
@@ -37,9 +37,9 @@
         </div>
 
         <div class="body-pad">
-          <!-- Premium badge -->
+          <!-- Rol badge -->
           <div style="margin-bottom:14px">
-            <span class="premium-badge">⭐ PREMIUM</span>
+            <span class="rol-badge" :class="`rol-${user.rol}`">{{ rolLabel }}</span>
           </div>
 
           <!-- Menu items -->
@@ -183,13 +183,13 @@
           >
             <div class="fr-info">
               <div class="fr-name">{{ f.nombre }}</div>
-              <div class="fr-loc">📍 {{ f.cabezas }} cabezas</div>
+              <div class="fr-loc">📍 {{ f.ubicacion || 'Sin ubicación' }}</div>
             </div>
             <span class="chev">›</span>
           </div>
 
-          <button class="btn-primary" style="margin-top:12px" @click="mostrarModal = true">
-            ➕ Vincular Nueva Finca
+          <button class="btn-primary" style="margin-top:12px" @click="abrirModalFinca">
+            ➕ Nueva Finca
           </button>
           <button class="btn-outline" @click="vista = 'menu'">‹ Volver al Perfil</button>
         </div>
@@ -213,10 +213,10 @@
               </div>
             </div>
             <div class="field-group">
-              <label class="field-label">Cabezas</label>
+              <label class="field-label">Ubicación</label>
               <div class="field-box field-readonly">
-                <span class="field-ico">🐄</span>
-                <span class="field-val">{{ fincaSel.cabezas }}</span>
+                <span class="field-ico">📍</span>
+                <span class="field-val">{{ fincaSel.ubicacion || 'Sin ubicación' }}</span>
               </div>
             </div>
           </div>
@@ -240,9 +240,9 @@
                 </div>
               </div>
               <div class="field-group">
-                <label class="field-label">Número de Cabezas</label>
+                <label class="field-label">Ubicación (opcional)</label>
                 <div class="field-box">
-                  <input v-model.number="nuevaFinca.cabezas" class="field-input" type="number" placeholder="0" />
+                  <input v-model="nuevaFinca.ubicacion" class="field-input" placeholder="Ej: Guanacaste, Costa Rica" />
                 </div>
               </div>
             </div>
@@ -259,55 +259,101 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { IonPage, IonContent, IonModal, toastController } from '@ionic/vue';
+import {
+  getFincasByUsuario,
+  crearFinca,
+  getAnimales,
+  type FincaDto,
+  type RolUsuario,
+} from '@/services/api';
 
-interface FincaLocal { nombre: string; cabezas: number; }
-
-const router   = useRouter();
-const vista    = ref<'menu'|'personal'|'hacienda'|'finca-detalle'>('menu');
-const editando = ref(false);
-const notifOn  = ref(true);
+const router       = useRouter();
+const vista        = ref<'menu'|'personal'|'hacienda'|'finca-detalle'>('menu');
+const editando     = ref(false);
+const notifOn      = ref(true);
 const mostrarModal = ref(false);
-const fincaSel = ref<FincaLocal | null>(null);
+const fincaSel     = ref<FincaDto | null>(null);
+const cargando     = ref(false);
 
-// User data from localStorage
+// ── Usuario desde localStorage ──────────────────────────────────────────────
 const rawUser = JSON.parse(localStorage.getItem('user') || '{}');
-const user = ref({ name: rawUser.name || 'Usuario', email: rawUser.email || '', phone: '' });
+const user = ref({
+  id:    rawUser.id   as number | undefined,
+  name:  rawUser.name  || 'Usuario',
+  email: rawUser.email || '',
+  rol:  (rawUser.rol   || 'ganadero') as RolUsuario,
+  phone: '',
+});
 
 const iniciales = computed(() =>
   user.value.name.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase() || 'U'
 );
 
-// Fincas (mock local hasta tener API de fincas integrada con user_id)
-const fincas = ref<FincaLocal[]>([
-  { nombre: 'Finca El Progreso', cabezas: 124 },
-  { nombre: 'Finca Los Olivos',  cabezas: 85  },
-]);
-const totalCabezas = computed(() => fincas.value.reduce((s, f) => s + f.cabezas, 0));
+const rolLabel = computed(() =>
+  user.value.rol === 'veterinario' ? '🩺 Veterinario' : '🐄 Ganadero'
+);
 
-const nuevaFinca = ref<FincaLocal>({ nombre: '', cabezas: 0 });
+// ── Fincas y animales desde la API ──────────────────────────────────────────
+const fincas   = ref<FincaDto[]>([]);
+const totalCabezas = ref(0);
+
+onMounted(async () => {
+  if (!user.value.id) return;
+  cargando.value = true;
+  try {
+    const [fData, aData] = await Promise.all([
+      getFincasByUsuario(user.value.id),
+      getAnimales(),
+    ]);
+    fincas.value     = fData;
+    totalCabezas.value = aData.length;
+  } catch { /* mantiene vacío */ }
+  finally { cargando.value = false; }
+});
+
+// ── Nueva finca ──────────────────────────────────────────────────────────────
+const nuevaFinca = ref({ nombre: '', ubicacion: '' });
+
+const abrirModalFinca = () => {
+  nuevaFinca.value = { nombre: '', ubicacion: '' };
+  mostrarModal.value = true;
+};
 
 const vincularFinca = async () => {
-  if (!nuevaFinca.value.nombre) {
+  if (!nuevaFinca.value.nombre.trim()) {
     const t = await toastController.create({ message: 'Ingresa el nombre de la finca.', duration: 2000, color: 'warning' });
     await t.present(); return;
   }
-  fincas.value.push({ ...nuevaFinca.value });
-  mostrarModal.value = false;
-  nuevaFinca.value = { nombre: '', cabezas: 0 };
-  const t = await toastController.create({ message: 'Finca vinculada exitosamente.', duration: 2500, color: 'success' });
-  await t.present();
+  try {
+    const f = await crearFinca({
+      nombre:    nuevaFinca.value.nombre.trim(),
+      ubicacion: nuevaFinca.value.ubicacion.trim() || null,
+      user_id:   user.value.id,
+    });
+    fincas.value.push(f);
+    mostrarModal.value = false;
+    const t = await toastController.create({ message: '¡Finca creada exitosamente!', duration: 2500, color: 'success' });
+    await t.present();
+  } catch (err: any) {
+    const t = await toastController.create({ message: err.message || 'Error al crear finca', duration: 2500, color: 'danger' });
+    await t.present();
+  }
 };
 
+// ── Guardar cambios de perfil ────────────────────────────────────────────────
 const guardarCambios = async () => {
-  localStorage.setItem('user', JSON.stringify({ name: user.value.name, email: user.value.email }));
+  // Preserva todos los campos del usuario (incluido rol) y solo actualiza name/email
+  const updated = { ...rawUser, name: user.value.name, email: user.value.email };
+  localStorage.setItem('user', JSON.stringify(updated));
   editando.value = false;
   const t = await toastController.create({ message: 'Perfil actualizado correctamente.', duration: 2000, color: 'success' });
   await t.present();
 };
 
+// ── Cerrar sesión ────────────────────────────────────────────────────────────
 const cerrarSesion = () => {
   localStorage.removeItem('user');
   router.push('/login');
@@ -380,14 +426,15 @@ const cerrarSesion = () => {
 /* Body */
 .body-pad { padding: 16px 18px 32px; }
 
-/* Premium */
-.premium-badge {
+/* Rol badge */
+.rol-badge {
   display: inline-flex; align-items: center; gap: 4px;
-  padding: 3px 10px; border-radius: 9999px;
-  background: linear-gradient(90deg, #FEF3C7, #FDE68A);
-  border: 1px solid #F59E0B;
-  font-size: .6875rem; font-weight: 800; color: #92400E;
+  padding: 4px 12px; border-radius: 9999px;
+  font-size: .6875rem; font-weight: 800; color: #fff;
+  letter-spacing: .02em;
 }
+.rol-ganadero  { background: linear-gradient(90deg, #1E5631, #3A9E61); }
+.rol-veterinario { background: linear-gradient(90deg, #1E3A5F, #2D7AB5); }
 
 /* List items */
 .list-item {

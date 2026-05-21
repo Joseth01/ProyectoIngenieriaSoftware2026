@@ -28,10 +28,10 @@
         <!-- ── Seleccionar animal ── -->
         <div class="form-section">
           <div class="form-sec-title">Animal</div>
-          <div class="animal-sel" @click="mostrarSelector = true">
+          <div class="animal-sel" @click="abrirModal">
             <div class="anim-emo">{{ animalSel ? '🐄' : '➕' }}</div>
             <div class="anim-sel-info">
-              <div class="anim-sel-name">{{ animalSel ? (animalSel.nombre ?? `Arete ${animalSel.numero_arete}`) : 'Seleccionar animal' }}</div>
+              <div class="anim-sel-name">{{ animalSel ? (animalSel.nombre ?? `Arete ${animalSel.numero_arete}`) : 'Seleccionar o crear animal' }}</div>
               <div class="anim-sel-id">{{ animalSel ? `#${animalSel.numero_arete} · ${animalSel.raza?.nombre ?? 'Sin raza'}` : 'Toca para elegir' }}</div>
             </div>
             <span class="chev">›</span>
@@ -104,31 +104,173 @@
 
       </div>
 
-      <!-- ── Modal selector de animal ── -->
-      <ion-modal :is-open="mostrarSelector" @didDismiss="mostrarSelector = false">
+      <!-- ════════════════════════════════════════════
+           MODAL: Seleccionar / Crear animal
+           ════════════════════════════════════════════ -->
+      <ion-modal :is-open="mostrarSelector" @didDismiss="cerrarModal">
         <ion-content class="page-bg">
+
+          <!-- header del modal -->
           <div class="app-bar">
-            <div class="page-title" style="font-size:1.125rem">Seleccionar animal</div>
-            <button class="icon-btn" @click="mostrarSelector = false">✕</button>
+            <div class="page-title" style="font-size:1.125rem">
+              {{ modoModal === 'seleccionar' ? 'Seleccionar animal' : 'Nuevo animal' }}
+            </div>
+            <button class="icon-btn" @click="cerrarModal">✕</button>
           </div>
-          <div class="body-pad">
-            <div class="search-box" style="margin-bottom:12px">
-              <span>🔍</span>
-              <input v-model="busqueda" class="search-input" placeholder="Buscar por nombre o arete…" />
-            </div>
-            <div
-              v-for="a in animalesFiltrados"
-              :key="a.id"
-              class="animal-sel-opt"
-              @click="elegirAnimal(a)"
+
+          <!-- tabs -->
+          <div class="modal-tab-row">
+            <button
+              class="modal-tab"
+              :class="{ active: modoModal === 'seleccionar' }"
+              @click="modoModal = 'seleccionar'"
             >
-              <div class="anim-emo">🐄</div>
-              <div>
-                <div style="font-size:.875rem;font-weight:600;color:#111827">{{ a.nombre ?? `Arete ${a.numero_arete}` }}</div>
-                <div style="font-size:.6875rem;color:#6B7280">#{{ a.numero_arete }} · {{ a.raza?.nombre ?? 'Sin raza' }}</div>
+              🔍 Seleccionar
+            </button>
+            <button
+              class="modal-tab"
+              :class="{ active: modoModal === 'crear' }"
+              @click="modoModal = 'crear'"
+            >
+              ➕ Nuevo animal
+            </button>
+          </div>
+
+          <div class="body-pad">
+
+            <!-- ── TAB: Seleccionar ───────────────────── -->
+            <template v-if="modoModal === 'seleccionar'">
+              <div class="search-box" style="margin-bottom:12px">
+                <span>🔍</span>
+                <input v-model="busqueda" class="search-input" placeholder="Buscar por nombre o arete…" />
               </div>
-            </div>
-            <div v-if="animalesFiltrados.length === 0" class="empty-state">Sin resultados.</div>
+
+              <div
+                v-for="a in animalesFiltrados"
+                :key="a.id"
+                class="animal-sel-opt"
+                @click="elegirAnimal(a)"
+              >
+                <div class="anim-emo">🐄</div>
+                <div>
+                  <div style="font-size:.875rem;font-weight:600;color:#111827">{{ a.nombre ?? `Arete ${a.numero_arete}` }}</div>
+                  <div style="font-size:.6875rem;color:#6B7280">#{{ a.numero_arete }} · {{ a.raza?.nombre ?? 'Sin raza' }}</div>
+                </div>
+              </div>
+
+              <div v-if="animalesFiltrados.length === 0" class="empty-state">
+                Sin resultados. Usa la pestaña "Nuevo animal" para registrar uno.
+              </div>
+            </template>
+
+            <!-- ── TAB: Crear animal ──────────────────── -->
+            <template v-else>
+
+              <!-- Número de arete -->
+              <div class="nf-field">
+                <label class="nf-label">Número de arete <span class="req">*</span></label>
+                <input
+                  v-model="nuevoArete"
+                  type="text"
+                  class="nf-input"
+                  placeholder="Ej. 001-2025"
+                />
+              </div>
+
+              <!-- Nombre -->
+              <div class="nf-field">
+                <label class="nf-label">Nombre del animal <span class="req">*</span></label>
+                <input
+                  v-model="nuevoNombre"
+                  type="text"
+                  class="nf-input"
+                  placeholder="Ej. Canela"
+                />
+              </div>
+
+              <!-- Raza -->
+              <div class="nf-field">
+                <label class="nf-label">Raza <span class="req">*</span></label>
+                <select v-model="nuevoRazaId" class="nf-input nf-select">
+                  <option value="" disabled>Selecciona una raza</option>
+                  <option
+                    v-for="r in razas"
+                    :key="r.id"
+                    :value="r.id"
+                  >
+                    {{ r.nombre }}
+                  </option>
+                </select>
+              </div>
+
+              <!-- Fecha de nacimiento -->
+              <div class="nf-field">
+                <label class="nf-label">Fecha de nacimiento <span class="req">*</span></label>
+                <input
+                  v-model="nuevoFechaNacimiento"
+                  type="date"
+                  class="nf-input"
+                  :max="hoy"
+                />
+              </div>
+
+              <!-- Finca -->
+              <div class="nf-field">
+                <label class="nf-label">Finca <span class="req">*</span></label>
+                <select v-model="nuevoFincaId" class="nf-input nf-select" :disabled="fincas.length === 1">
+                  <option value="" disabled>Selecciona una finca</option>
+                  <option v-for="f in fincas" :key="f.id" :value="f.id">{{ f.nombre }}</option>
+                </select>
+                <p v-if="fincas.length === 0" class="nf-hint">
+                  No tienes fincas registradas.
+                  <a @click="cerrarModal(); router.push('/tabs/finca')" class="nf-link">Crea una primero →</a>
+                </p>
+              </div>
+
+              <!-- Divider peso ingreso -->
+              <div class="nf-divider">
+                <span>Peso de ingreso a la finca</span>
+              </div>
+
+              <!-- Peso de ingreso -->
+              <div class="nf-field">
+                <label class="nf-label">Peso al ingresar <span class="nf-optional">(opcional)</span></label>
+                <div class="nf-peso-wrap">
+                  <input
+                    v-model.number="nuevoPesoIngreso"
+                    type="number"
+                    class="nf-input"
+                    placeholder="Ej. 320"
+                    min="0"
+                    step="0.1"
+                  />
+                  <span class="nf-peso-unit">kg</span>
+                </div>
+              </div>
+
+              <!-- Fecha de ingreso -->
+              <div v-if="nuevoPesoIngreso" class="nf-field">
+                <label class="nf-label">Fecha de ingreso</label>
+                <input
+                  v-model="nuevoFechaIngreso"
+                  type="date"
+                  class="nf-input"
+                  :max="hoy"
+                />
+              </div>
+
+              <!-- Error / Éxito creación -->
+              <div v-if="errorCrear" class="feedback error" style="margin-bottom:12px">{{ errorCrear }}</div>
+              <div v-if="successCrear" class="feedback success" style="margin-bottom:12px">{{ successCrear }}</div>
+
+              <!-- Botón guardar animal -->
+              <button class="btn-save" :disabled="guardandoAnimal || fincas.length === 0" @click="crearAnimal">
+                <span v-if="guardandoAnimal">Creando animal…</span>
+                <span v-else>🐄 Crear y seleccionar</span>
+              </button>
+
+            </template>
+
           </div>
         </ion-content>
       </ion-modal>
@@ -141,22 +283,53 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { IonPage, IonContent, IonModal } from '@ionic/vue';
-import { getAnimales, getPesajes, crearPesaje, pesoNumerico, formatFecha, AnimalDto, PesajeDto } from '@/services/api';
+import {
+  getAnimales, getPesajes, crearPesaje, crearAnimal as apiCrearAnimal,
+  getRazas, getFincasByUsuario,
+  pesoNumerico, formatFecha,
+  AnimalDto, PesajeDto, RazaDto, FincaDto,
+} from '@/services/api';
 
-const router         = useRouter();
+const router = useRouter();
+
+// ── Datos generales ────────────────────────────────────────────────────────
 const animales       = ref<AnimalDto[]>([]);
 const pesajes        = ref<PesajeDto[]>([]);
+const razas          = ref<RazaDto[]>([]);
+const fincas         = ref<FincaDto[]>([]);
+
+// ── Estado del formulario de pesaje ───────────────────────────────────────
 const animalSel      = ref<AnimalDto | null>(null);
 const peso           = ref(0);
 const pesoReal       = ref<number | null>(null);
 const fecha          = ref(new Date().toISOString().slice(0, 10));
-const mostrarSelector = ref(false);
-const busqueda       = ref('');
 const saving         = ref(false);
 const loadingPesajes = ref(true);
 const success        = ref(false);
 const errorMsg       = ref('');
 
+// ── Modal ──────────────────────────────────────────────────────────────────
+const mostrarSelector = ref(false);
+const modoModal       = ref<'seleccionar' | 'crear'>('seleccionar');
+const busqueda        = ref('');
+
+// ── Formulario nuevo animal ────────────────────────────────────────────────
+const nuevoArete          = ref('');
+const nuevoNombre         = ref('');
+const nuevoRazaId         = ref<number | ''>('');
+const nuevoFechaNacimiento = ref('');
+const nuevoFincaId        = ref<number | ''>('');
+const guardandoAnimal      = ref(false);
+const errorCrear           = ref('');
+const successCrear         = ref('');
+const nuevoPesoIngreso     = ref<number | null>(null);
+const nuevoFechaIngreso    = ref(new Date().toISOString().slice(0, 10));
+const hoy                  = new Date().toISOString().slice(0, 10);
+
+// ── Usuario logueado (disponible en todo el componente) ────────────────────
+let userId: number | undefined;
+
+// ── Computadas ─────────────────────────────────────────────────────────────
 const animalesFiltrados = computed(() => {
   const q = busqueda.value.toLowerCase();
   if (!q) return animales.value;
@@ -165,6 +338,42 @@ const animalesFiltrados = computed(() => {
     a.numero_arete.toLowerCase().includes(q)
   );
 });
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+const limpiarFormAnimal = () => {
+  nuevoArete.value = '';
+  nuevoNombre.value = '';
+  nuevoRazaId.value = '';
+  nuevoFechaNacimiento.value = '';
+  nuevoPesoIngreso.value = null;
+  nuevoFechaIngreso.value = new Date().toISOString().slice(0, 10);
+  errorCrear.value = '';
+  successCrear.value = '';
+  // Finca: si solo hay una, mantenerla seleccionada
+  if (fincas.value.length === 1) nuevoFincaId.value = fincas.value[0].id;
+};
+
+const abrirModal = async () => {
+  modoModal.value = 'seleccionar';
+  busqueda.value = '';
+  mostrarSelector.value = true;
+
+  // Recargar animales y fincas al abrir — captura creaciones recientes
+  try {
+    const [aData, fData] = await Promise.all([
+      getAnimales(),
+      userId ? getFincasByUsuario(userId) : Promise.resolve(fincas.value),
+    ]);
+    animales.value = aData;
+    fincas.value   = fData;
+    if (fincas.value.length === 1) nuevoFincaId.value = fincas.value[0].id;
+  } catch { /* mantiene datos previos si falla */ }
+};
+
+const cerrarModal = () => {
+  mostrarSelector.value = false;
+  limpiarFormAnimal();
+};
 
 const elegirAnimal = (a: AnimalDto) => {
   animalSel.value = a;
@@ -180,6 +389,82 @@ const resetForm = () => {
   errorMsg.value = '';
 };
 
+// ── Crear animal ───────────────────────────────────────────────────────────
+const crearAnimal = async () => {
+  errorCrear.value = '';
+  successCrear.value = '';
+
+  if (!nuevoArete.value.trim()) { errorCrear.value = 'El número de arete es obligatorio.'; return; }
+  if (!nuevoNombre.value.trim()) { errorCrear.value = 'El nombre es obligatorio.'; return; }
+  if (!nuevoRazaId.value)        { errorCrear.value = 'Selecciona una raza.'; return; }
+  if (!nuevoFechaNacimiento.value) { errorCrear.value = 'La fecha de nacimiento es obligatoria.'; return; }
+  if (!nuevoFincaId.value)       { errorCrear.value = 'Selecciona una finca.'; return; }
+
+  // Coerción explícita — el v-model de <select> puede entregar string o number
+  const razaId  = Number(nuevoRazaId.value);
+  const fincaId = Number(nuevoFincaId.value);
+  const razaSel = razas.value.find(r => r.id === razaId);
+
+  if (!razaSel) { errorCrear.value = 'Raza no válida. Recarga la página e intenta de nuevo.'; return; }
+
+  guardandoAnimal.value = true;
+  try {
+    const animal = await apiCrearAnimal({
+      numero_arete:     nuevoArete.value.trim(),
+      nombre:           nuevoNombre.value.trim(),
+      raza_id:          razaId,
+      nombre_raza:      razaSel.nombre.toLowerCase(),
+      fecha_nacimiento: nuevoFechaNacimiento.value,
+      finca_id:         fincaId,
+    } as any);
+
+    // Si se ingresó peso de ingreso, registrar el primer pesaje automáticamente.
+    // El backend usa el patrón Strategy (metodo_estimacion requerido).
+    // Usamos 'tabla' + raza + edad calculada → peso_estimado lo genera el algoritmo.
+    // peso_real = peso conocido que el usuario ingresó.
+    if (nuevoPesoIngreso.value && nuevoPesoIngreso.value > 0) {
+      const nacimiento  = new Date(nuevoFechaNacimiento.value);
+      const fechaIngreso = new Date(nuevoFechaIngreso.value);
+      const edadMeses   = Math.max(1, Math.floor(
+        (fechaIngreso.getTime() - nacimiento.getTime()) / (1000 * 60 * 60 * 24 * 30.44)
+      ));
+
+      await crearPesaje({
+        animal_id:          animal.id,
+        fecha:              nuevoFechaIngreso.value,
+        metodo_estimacion:  'tabla',
+        raza:               razaSel.nombre.toLowerCase(),
+        edad_meses:         edadMeses,
+        peso_real:          nuevoPesoIngreso.value,
+      } as any);
+    }
+
+    // Actualizar lista y autoseleccionar el animal recién creado
+    const [aData, pData] = await Promise.all([getAnimales(), getPesajes()]);
+    animales.value = aData;
+    pesajes.value  = (pData.datos || [])
+      .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+      .slice(0, 10);
+
+    const msgPeso = nuevoPesoIngreso.value && nuevoPesoIngreso.value > 0
+      ? ` y pesaje de ingreso (${nuevoPesoIngreso.value} kg) registrados.`
+      : ' creado.';
+    successCrear.value = `✓ Animal "${animal.nombre}"${msgPeso}`;
+
+    // Esperar un momento para que el usuario vea el éxito, luego seleccionar y cerrar
+    setTimeout(() => {
+      elegirAnimal(animal);
+      limpiarFormAnimal();
+    }, 900);
+
+  } catch (e: unknown) {
+    errorCrear.value = e instanceof Error ? e.message : 'Error al crear el animal.';
+  } finally {
+    guardandoAnimal.value = false;
+  }
+};
+
+// ── Guardar pesaje ─────────────────────────────────────────────────────────
 const guardar = async () => {
   if (!animalSel.value) { errorMsg.value = 'Selecciona un animal.'; return; }
   if (!peso.value || peso.value <= 0) { errorMsg.value = 'Ingresa un peso válido.'; return; }
@@ -187,14 +472,13 @@ const guardar = async () => {
   saving.value = true;
   try {
     await crearPesaje({
-      animal_id: animalSel.value.id,
+      animal_id:     animalSel.value.id,
       peso_estimado: peso.value,
-      peso_real: pesoReal.value ?? undefined,
-      fecha: fecha.value,
+      peso_real:     pesoReal.value ?? undefined,
+      fecha:         fecha.value,
     });
     success.value = true;
     resetForm();
-    // Recargar lista
     const r = await getPesajes();
     pesajes.value = (r.datos || []).slice(0, 10);
   } catch {
@@ -204,13 +488,29 @@ const guardar = async () => {
   }
 };
 
+// ── Montaje ────────────────────────────────────────────────────────────────
 onMounted(async () => {
+  // Leer usuario del localStorage para cargar sus fincas
+  const raw = localStorage.getItem('user');
+  userId = raw ? (JSON.parse(raw) as { id?: number }).id : undefined;
+
   try {
-    const [aData, pData] = await Promise.all([getAnimales(), getPesajes()]);
+    const [aData, pData, rData] = await Promise.all([
+      getAnimales(),
+      getPesajes(),
+      getRazas(),
+    ]);
     animales.value = aData;
     pesajes.value  = (pData.datos || [])
       .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
       .slice(0, 10);
+    razas.value = rData;
+
+    if (userId) {
+      fincas.value = await getFincasByUsuario(userId);
+      // Autoseleccionar si solo hay una finca
+      if (fincas.value.length === 1) nuevoFincaId.value = fincas.value[0].id;
+    }
   } catch { /* sin datos */ }
   finally { loadingPesajes.value = false; }
 });
@@ -286,8 +586,7 @@ onMounted(async () => {
   font-size: 2.5rem; font-weight: 900; color: #1E5631;
   border: 2px solid #D8F3DC; background: #EEF9F2;
   border-radius: 14px; padding: 18px 48px 18px 20px;
-  outline: none; font-family: inherit;
-  transition: border-color .15s;
+  outline: none; font-family: inherit; transition: border-color .15s;
 }
 .weight-input:focus { border-color: #2D7A4A; }
 .weight-unit {
@@ -310,6 +609,7 @@ onMounted(async () => {
   border: 1.5px solid #E5E7EB; border-radius: 12px;
   font-size: .875rem; color: #111827; background: #F2F5F3;
   outline: none; font-family: inherit; transition: border-color .15s;
+  box-sizing: border-box;
 }
 .field-input:focus { border-color: #1E5631; background: #fff; }
 .field-suffix { position: absolute; right: 14px; font-size: .8125rem; font-weight: 600; color: #6B7280; }
@@ -334,7 +634,7 @@ onMounted(async () => {
   font-family: inherit; display: flex; align-items: center; justify-content: center;
   transition: opacity .2s;
 }
-.btn-save:disabled { opacity: .65; }
+.btn-save:disabled { opacity: .65; cursor: not-allowed; }
 
 /* Status */
 .sec-title { font-size: .875rem; font-weight: 700; color: #111827; }
@@ -357,6 +657,26 @@ onMounted(async () => {
 .pr-fecha  { font-size: .6875rem; color: #6B7280; }
 .pr-peso   { font-size: .9375rem; font-weight: 800; color: #1E5631; flex-shrink: 0; }
 
+/* ── Modal tabs ────────────────────────────────────────────────────────── */
+.modal-tab-row {
+  display: flex;
+  background: #F2F5F3;
+  border-bottom: 1px solid #E5E7EB;
+}
+.modal-tab {
+  flex: 1; padding: 12px 8px;
+  border: none; background: transparent;
+  font-size: .8125rem; font-weight: 600; color: #6B7280;
+  cursor: pointer; font-family: inherit;
+  border-bottom: 2px solid transparent;
+  transition: color .15s, border-color .15s;
+}
+.modal-tab.active {
+  color: #1E5631;
+  border-bottom-color: #1E5631;
+  background: #fff;
+}
+
 /* Selector modal */
 .search-box {
   display: flex; align-items: center; gap: 10px;
@@ -374,4 +694,56 @@ onMounted(async () => {
   cursor: pointer; transition: box-shadow .15s;
 }
 .animal-sel-opt:hover { box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+
+/* ── Formulario nuevo animal ──────────────────────────────────────────── */
+.nf-field {
+  margin-bottom: 14px;
+}
+.nf-label {
+  display: block;
+  font-size: .8125rem; font-weight: 700; color: #374151;
+  margin-bottom: 6px;
+}
+.req { color: #EF4444; }
+.nf-input {
+  width: 100%; padding: 11px 14px;
+  border: 1.5px solid #E5E7EB; border-radius: 12px;
+  font-size: .875rem; color: #111827; background: #F9FAFB;
+  outline: none; font-family: inherit;
+  transition: border-color .15s, background .15s;
+  box-sizing: border-box;
+}
+.nf-input:focus { border-color: #1E5631; background: #fff; }
+.nf-select { appearance: none; cursor: pointer; }
+.nf-hint {
+  font-size: .75rem; color: #6B7280; margin-top: 6px;
+}
+.nf-link {
+  color: #1E5631; font-weight: 700; cursor: pointer; text-decoration: underline;
+}
+
+.nf-optional {
+  font-weight: 400; color: #9CA3AF; font-size: .75rem;
+}
+
+.nf-divider {
+  display: flex; align-items: center; gap: 10px;
+  margin: 6px 0 14px;
+  color: #9CA3AF; font-size: .6875rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .07em;
+}
+.nf-divider::before,
+.nf-divider::after {
+  content: ''; flex: 1; height: 1px; background: #E5E7EB;
+}
+
+.nf-peso-wrap {
+  position: relative; display: flex; align-items: center;
+}
+.nf-peso-wrap .nf-input { padding-right: 42px; }
+.nf-peso-unit {
+  position: absolute; right: 14px;
+  font-size: .875rem; font-weight: 700; color: #6B7280;
+  pointer-events: none;
+}
 </style>

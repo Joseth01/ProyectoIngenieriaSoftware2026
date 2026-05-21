@@ -41,64 +41,138 @@
           Control inteligente de peso para tu ganado bovino
         </p>
 
-        <!-- form -->
+        <!-- form card -->
         <div class="form-card">
 
-          <h2 class="form-title">
-            Iniciar sesión
-          </h2>
+          <!-- tabs login / registro -->
+          <div class="tab-row">
+            <button
+              class="tab-btn"
+              :class="{ active: modo === 'login' }"
+              @click="cambiarModo('login')"
+            >
+              Iniciar sesión
+            </button>
+            <button
+              class="tab-btn"
+              :class="{ active: modo === 'registro' }"
+              @click="cambiarModo('registro')"
+            >
+              Crear cuenta
+            </button>
+          </div>
 
+          <!-- nombre completo (solo en registro) -->
+          <div v-if="modo === 'registro'" class="field">
+            <label class="field-label">Nombre completo</label>
+            <div class="field-input-wrap">
+              <span class="field-icon">👤</span>
+              <input
+                v-model="nombre"
+                type="text"
+                class="field-input"
+                placeholder="Tu nombre"
+                @keyup.enter="submit"
+              />
+            </div>
+          </div>
+
+          <!-- selector de rol (solo en registro) -->
+          <div v-if="modo === 'registro'" class="field">
+            <label class="field-label">Soy…</label>
+            <div class="rol-grid">
+              <button
+                type="button"
+                class="rol-card"
+                :class="{ selected: rol === 'ganadero' }"
+                @click="rol = 'ganadero'"
+              >
+                <span class="rol-ico">🐄</span>
+                <span class="rol-name">Ganadero</span>
+                <span class="rol-desc">Gestiono mi hato</span>
+              </button>
+              <button
+                type="button"
+                class="rol-card"
+                :class="{ selected: rol === 'veterinario' }"
+                @click="rol = 'veterinario'"
+              >
+                <span class="rol-ico">🩺</span>
+                <span class="rol-name">Veterinario</span>
+                <span class="rol-desc">Controlo la salud</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- correo -->
           <div class="field">
-            <label class="field-label">
-              Correo electrónico
-            </label>
-
+            <label class="field-label">Correo electrónico</label>
             <div class="field-input-wrap">
               <span class="field-icon">✉</span>
-
               <input
                 v-model="email"
                 type="email"
                 class="field-input"
                 placeholder="tucorreo@ejemplo.com"
-                @keyup.enter="login"
+                @keyup.enter="submit"
               />
             </div>
           </div>
 
+          <!-- contraseña -->
           <div class="field">
-            <label class="field-label">
-              Contraseña
-            </label>
-
+            <label class="field-label">Contraseña</label>
             <div class="field-input-wrap">
               <span class="field-icon">🔒</span>
-
               <input
                 v-model="password"
-                type="password"
+                :type="mostrarPassword ? 'text' : 'password'"
                 class="field-input"
                 placeholder="••••••••"
-                @keyup.enter="login"
+                @keyup.enter="submit"
+              />
+              <button
+                type="button"
+                class="toggle-eye"
+                @click="mostrarPassword = !mostrarPassword"
+              >
+                {{ mostrarPassword ? '🙈' : '👁' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- confirmar contraseña (solo en registro) -->
+          <div v-if="modo === 'registro'" class="field">
+            <label class="field-label">Confirmar contraseña</label>
+            <div class="field-input-wrap">
+              <span class="field-icon">🔑</span>
+              <input
+                v-model="confirmarPassword"
+                :type="mostrarPassword ? 'text' : 'password'"
+                class="field-input"
+                placeholder="••••••••"
+                @keyup.enter="submit"
               />
             </div>
           </div>
 
-          <p v-if="errorMsg" class="error-msg">
-            {{ errorMsg }}
-          </p>
+          <!-- mensaje de error -->
+          <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
 
+          <!-- mensaje de éxito -->
+          <p v-if="successMsg" class="success-msg">{{ successMsg }}</p>
+
+          <!-- botón principal -->
           <button
             class="btn-login"
             :disabled="loading"
-            @click="login"
+            @click="submit"
           >
             <span v-if="loading">
-              Ingresando…
+              {{ modo === 'login' ? 'Ingresando…' : 'Creando cuenta…' }}
             </span>
-
             <span v-else>
-              Ingresar
+              {{ modo === 'login' ? 'Ingresar' : 'Crear cuenta' }}
             </span>
           </button>
 
@@ -117,45 +191,100 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { IonPage, IonContent } from '@ionic/vue';
+import { loginUsuario, registrarUsuario, RolUsuario } from '@/services/api';
 
 const router = useRouter();
 
-const email = ref('');
-const password = ref('');
-const loading = ref(false);
-const errorMsg = ref('');
+type Modo = 'login' | 'registro';
 
-const login = async () => {
+const modo             = ref<Modo>('login');
+const nombre           = ref('');
+const email            = ref('');
+const password         = ref('');
+const confirmarPassword = ref('');
+const rol              = ref<RolUsuario>('ganadero');
+const mostrarPassword  = ref(false);
+const loading          = ref(false);
+const errorMsg         = ref('');
+const successMsg       = ref('');
 
-  if (!email.value) {
-    errorMsg.value = 'Ingresa tu correo electrónico.';
+const limpiarMensajes = () => {
+  errorMsg.value  = '';
+  successMsg.value = '';
+};
+
+const cambiarModo = (nuevoModo: Modo) => {
+  modo.value = nuevoModo;
+  limpiarMensajes();
+};
+
+const submit = () => {
+  if (modo.value === 'login') hacerLogin();
+  else hacerRegistro();
+};
+
+// ── Login real ──────────────────────────────────────────────────────────────
+const hacerLogin = async () => {
+  if (!email.value || !password.value) {
+    errorMsg.value = 'Ingresa tu correo y contraseña.';
     return;
   }
 
-  errorMsg.value = '';
+  limpiarMensajes();
   loading.value = true;
 
-  // Simulación de login
-  await new Promise(resolve => setTimeout(resolve, 600));
+  try {
+    const usuario = await loginUsuario({
+      email: email.value,
+      password: password.value,
+    });
 
-  const name = email.value
-    .split('@')[0]
-    .replace(/[._]/g, ' ')
-    .replace(/\b\w/g, c => c.toUpperCase());
-
-  localStorage.setItem(
-    'user',
-    JSON.stringify({
-      name,
-      email: email.value
-    })
-  );
-
-  loading.value = false;
-
-  router.push('/tabs/dashboard');
+    localStorage.setItem('user', JSON.stringify(usuario));
+    router.push('/tabs/dashboard');
+  } catch (e: unknown) {
+    errorMsg.value = e instanceof Error ? e.message : 'Error al iniciar sesión.';
+  } finally {
+    loading.value = false;
+  }
 };
 
+// ── Registro real ───────────────────────────────────────────────────────────
+const hacerRegistro = async () => {
+  if (!nombre.value || !email.value || !password.value || !confirmarPassword.value) {
+    errorMsg.value = 'Completa todos los campos.';
+    return;
+  }
+  if (password.value.length < 6) {
+    errorMsg.value = 'La contraseña debe tener al menos 6 caracteres.';
+    return;
+  }
+  if (password.value !== confirmarPassword.value) {
+    errorMsg.value = 'Las contraseñas no coinciden.';
+    return;
+  }
+
+  limpiarMensajes();
+  loading.value = true;
+
+  try {
+    const usuario = await registrarUsuario({
+      name: nombre.value,
+      email: email.value,
+      password: password.value,
+      rol: rol.value,
+    });
+
+    localStorage.setItem('user', JSON.stringify(usuario));
+    successMsg.value = '¡Cuenta creada exitosamente! Redirigiendo…';
+    setTimeout(() => router.push('/tabs/dashboard'), 1200);
+  } catch (e: unknown) {
+    errorMsg.value = e instanceof Error ? e.message : 'Error al crear la cuenta.';
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Si ya hay sesión, va directo al dashboard
 onMounted(() => {
   if (localStorage.getItem('user')) {
     router.push('/tabs/dashboard');
@@ -177,13 +306,10 @@ onMounted(() => {
     #1E5631 55%,
     #3A9E61 100%
   );
-
   display: flex;
   flex-direction: column;
   align-items: center;
-
   padding: 48px 24px 32px;
-
   position: relative;
   overflow: hidden;
 }
@@ -212,19 +338,13 @@ onMounted(() => {
 .logo-wrap {
   width: 84px;
   height: 84px;
-
   border-radius: 26px;
-
   background: rgba(255,255,255,.12);
-
   border: 1.5px solid rgba(255,255,255,.22);
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   margin-bottom: 18px;
-
   backdrop-filter: blur(8px);
 }
 
@@ -236,11 +356,8 @@ onMounted(() => {
 .brand {
   font-size: 2.25rem;
   font-weight: 900;
-
   color: white;
-
   letter-spacing: -1px;
-
   margin: 0;
 }
 
@@ -250,80 +367,85 @@ onMounted(() => {
 
 .brand-sub {
   font-size: .6875rem;
-
   letter-spacing: .18em;
-
   color: rgba(255,255,255,.5);
-
   margin: 4px 0 10px;
-
   text-transform: uppercase;
 }
 
 .brand-desc {
   font-size: .9rem;
-
   color: rgba(255,255,255,.7);
-
   text-align: center;
-
   margin: 0 0 32px;
-
   line-height: 1.5;
 }
+
+/* ── form card ─────────────────────────────────────────────────────────── */
 
 .form-card {
   width: 100%;
   max-width: 420px;
-
   background: white;
-
   border-radius: 24px;
-
-  padding: 28px 24px;
-
+  padding: 24px 24px 28px;
   box-shadow: 0 20px 60px rgba(0,0,0,.25);
 }
 
-.form-title {
-  font-size: 1.25rem;
-  font-weight: 800;
+/* ── tabs ──────────────────────────────────────────────────────────────── */
 
-  color: #1A3D28;
-
-  margin: 0 0 22px;
+.tab-row {
+  display: flex;
+  background: #F2F5F3;
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 22px;
+  gap: 4px;
 }
 
+.tab-btn {
+  flex: 1;
+  padding: 9px 0;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  font-size: .875rem;
+  font-weight: 600;
+  color: #6B7280;
+  cursor: pointer;
+  transition: background .2s, color .2s, box-shadow .2s;
+  font-family: inherit;
+}
+
+.tab-btn.active {
+  background: white;
+  color: #1A3D28;
+  box-shadow: 0 1px 6px rgba(0,0,0,.12);
+}
+
+/* ── fields ────────────────────────────────────────────────────────────── */
+
 .field {
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .field-label {
   display: block;
-
   font-size: .8125rem;
   font-weight: 700;
-
   color: #374151;
-
   margin-bottom: 6px;
 }
 
 .field-input-wrap {
   display: flex;
   align-items: center;
-
   gap: 10px;
-
   background: #F2F5F3;
-
   border: 1.5px solid #E5E7EB;
-
   border-radius: 12px;
-
   padding: 11px 14px;
-
-  transition: border-color .2s;
+  transition: border-color .2s, background .2s;
 }
 
 .field-input-wrap:focus-within {
@@ -338,16 +460,11 @@ onMounted(() => {
 
 .field-input {
   flex: 1;
-
   border: none;
   background: transparent;
-
   outline: none;
-
   font-size: .9375rem;
-
   color: #111827;
-
   font-family: inherit;
 }
 
@@ -355,49 +472,58 @@ onMounted(() => {
   color: #9CA3AF;
 }
 
+.toggle-eye {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+  opacity: .6;
+  transition: opacity .2s;
+}
+
+.toggle-eye:hover {
+  opacity: 1;
+}
+
+/* ── messages ──────────────────────────────────────────────────────────── */
+
 .error-msg {
   font-size: .8125rem;
-
   color: #EF4444;
-
   background: #FEE2E2;
-
   border-radius: 8px;
-
   padding: 8px 12px;
-
   margin: 0 0 14px;
 }
 
+.success-msg {
+  font-size: .8125rem;
+  color: #15803D;
+  background: #DCFCE7;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 0 0 14px;
+}
+
+/* ── submit ────────────────────────────────────────────────────────────── */
+
 .btn-login {
   width: 100%;
-
   padding: 15px;
-
-  background: linear-gradient(
-    135deg,
-    #1A3D28,
-    #2D7A4A
-  );
-
+  background: linear-gradient(135deg, #1A3D28, #2D7A4A);
   color: white;
-
   font-size: .9375rem;
   font-weight: 700;
-
   border: none;
-
   border-radius: 14px;
-
   cursor: pointer;
-
   box-shadow: 0 4px 14px rgba(30,86,49,.35);
-
   transition: opacity .2s, transform .2s;
-
   font-family: inherit;
-
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
 .btn-login:disabled {
@@ -408,13 +534,61 @@ onMounted(() => {
   transform: translateY(-1px);
 }
 
+/* ── rol selector ──────────────────────────────────────────────────────── */
+
+.rol-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.rol-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 8px;
+  border-radius: 14px;
+  border: 2px solid #E5E7EB;
+  background: #F9FAFB;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color .18s, background .18s, box-shadow .18s;
+}
+
+.rol-card:hover {
+  border-color: #6EE7A0;
+  background: #F0FDF4;
+}
+
+.rol-card.selected {
+  border-color: #1E5631;
+  background: #ECFDF5;
+  box-shadow: 0 0 0 3px rgba(30,86,49,.12);
+}
+
+.rol-ico {
+  font-size: 1.75rem;
+  line-height: 1;
+}
+
+.rol-name {
+  font-size: .875rem;
+  font-weight: 700;
+  color: #1A3D28;
+}
+
+.rol-desc {
+  font-size: .6875rem;
+  color: #6B7280;
+}
+
+/* ── footer ────────────────────────────────────────────────────────────── */
+
 .footer-note {
   margin-top: 24px;
-
   font-size: .6875rem;
-
   color: rgba(255,255,255,.4);
-
   letter-spacing: .04em;
 }
 

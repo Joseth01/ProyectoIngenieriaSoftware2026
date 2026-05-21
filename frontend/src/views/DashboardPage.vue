@@ -15,7 +15,7 @@
       <div class="hero">
         <div class="hero-row">
           <div>
-            <div class="greet-sm">Buenos días,</div>
+            <div class="greet-sm">{{ saludoHora }},</div>
             <div class="greet-name">{{ userName }} 👋</div>
           </div>
           <div class="avatar-circle" @click="goTo('perfil')">{{ userInitials }}</div>
@@ -136,9 +136,17 @@ const fincas   = ref<FincaDto[]>([]);
 const loading  = ref(true);
 const error    = ref('');
 
-const userInitials = computed(() => {
-  return userName.value.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'U';
+// ── Saludo según hora del día ───────────────────────────────────────────────
+const saludoHora = computed(() => {
+  const h = new Date().getHours();
+  if (h < 12) return 'Buenos días';
+  if (h < 19) return 'Buenas tardes';
+  return 'Buenas noches';
 });
+
+const userInitials = computed(() =>
+  userName.value.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'U'
+);
 
 const pesoPromedio = computed(() => {
   if (!pesajes.value.length) return 0;
@@ -167,7 +175,23 @@ const goTo = (path: string) => router.push(`/tabs/${path}`);
 
 onMounted(async () => {
   const raw = localStorage.getItem('user');
-  if (raw) userName.value = JSON.parse(raw).name || 'Usuario';
+
+  if (!raw) {
+    // Sin sesión → login
+    router.replace('/login');
+    return;
+  }
+
+  const usuario = JSON.parse(raw) as { id?: number; name?: string; email?: string };
+
+  // Sesión antigua (simulada, sin id) → forzar re-login
+  if (!usuario.id) {
+    localStorage.removeItem('user');
+    router.replace('/login');
+    return;
+  }
+
+  userName.value = usuario.name || usuario.email?.split('@')[0] || 'Usuario';
 
   try {
     const [aData, pData, fData] = await Promise.all([

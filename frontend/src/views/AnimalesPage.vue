@@ -162,8 +162,13 @@ function estadoTag(a: AnimalDto) {
   return { cls: 'tag-r', txt: '✗ Inactivo' };
 }
 
-function ultimoPeso(_a: AnimalDto): string {
-  return '— kg';
+function ultimoPeso(a: AnimalDto): string {
+  const pesajes = a.pesajes;
+  if (!pesajes || pesajes.length === 0) return '— kg';
+  const ultimo = [...pesajes].sort(
+    (x, y) => new Date(y.fecha).getTime() - new Date(x.fecha).getTime()
+  )[0];
+  return `${pesoNumerico(ultimo).toFixed(0)} kg`;
 }
 
 function edad(a: AnimalDto): string {
