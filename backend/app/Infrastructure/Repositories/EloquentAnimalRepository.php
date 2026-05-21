@@ -2,17 +2,17 @@
 
 namespace App\Infrastructure\Repositories;
 
-use App\Domain\Animales\IAnimalRepository;
+use App\Domain\Animales\IAnimalRepositoryV2;
 use App\Models\Animal;
 
 /**
  * Concrete Repository — implementación con Eloquent.
  *
- * Es el ÚNICO lugar donde vive Animal::where(), Animal::with(), etc.
- * Agregar caché Redis = modificar solo este archivo.
- * Intercambiable por DoctrineAnimalRepository sin tocar ningún servicio.
+ * Implementa IAnimalRepositoryV2 (= IAnimalLector + IAnimalEscritor).
+ * Sustituible por DoctrineAnimalRepository o InMemoryAnimalRepositoryReparado
+ * sin tocar ningún servicio.
  */
-class EloquentAnimalRepository implements IAnimalRepository
+class EloquentAnimalRepository implements IAnimalRepositoryV2
 {
     public function findByArete(string $arete): ?Animal
     {

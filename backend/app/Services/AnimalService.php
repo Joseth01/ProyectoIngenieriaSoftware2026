@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Domain\Animales\IAnimalRepository;
+use App\Domain\Animales\IAnimalRepositoryV2;
 use App\Domain\Razas\IRazaFactory;
 use App\Models\Animal;
 
@@ -17,8 +17,8 @@ use App\Models\Animal;
 class AnimalService
 {
     public function __construct(
-        private readonly IAnimalRepository $animalRepository,
-        private readonly IRazaFactory      $razaFactory
+        private readonly IAnimalRepositoryV2 $animalRepository,
+        private readonly IRazaFactory        $razaFactory
     ) {}
 
     public function registrar(array $datos): Animal

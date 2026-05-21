@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Domain\Animales\IAnimalRepository;
+use App\Domain\Animales\IAnimalLector;
 use App\Domain\Razas\IRazaFactory;
 
 /**
@@ -17,8 +17,8 @@ use App\Domain\Razas\IRazaFactory;
 class ReporteService
 {
     public function __construct(
-        private readonly IAnimalRepository $animalRepository,
-        private readonly IRazaFactory      $razaFactory
+        private readonly IAnimalLector $animalRepository,
+        private readonly IRazaFactory  $razaFactory
     ) {}
 
     public function reportePorFinca(int $fincaId): array

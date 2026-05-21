@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Domain\Pesajes\IPesajeObserver;
+use App\Domain\Razas\IRazaFactory;
 use App\Models\Pesaje;
 use Illuminate\Support\Facades\Log;
 
@@ -11,6 +12,8 @@ use Illuminate\Support\Facades\Log;
  */
 class RecalculadorICC implements IPesajeObserver
 {
+    public function __construct(private readonly IRazaFactory $razaFactory) {}
+
     public function onPesajeRegistrado(Pesaje $pesaje): void
     {
         $animal = $pesaje->animal;
@@ -19,11 +22,16 @@ class RecalculadorICC implements IPesajeObserver
             Log::warning("[RecalculadorICC] Animal no encontrado para pesaje_id: {$pesaje->id}");
             return;
         }
+        try {
+            // Delega los parámetros zootécnicos a la abstracción correcta.
+            // Ahora RecalculadorICC solo ORQUESTA — no conoce ningún valor concreto.
+            $razaDominio = $this->razaFactory->create($animal->raza?->nombre ?? 'brahman');
+            $icc = $razaDominio->calcularICC($pesaje->peso_estimado);
 
-        // Cálculo simplificado del ICC: peso / peso_promedio_raza * coeficiente
-        $pesoPromedio = 450.0; // En producción: obtener de RazaFactory
-        $icc = round($pesaje->peso_estimado / $pesoPromedio * 2.8, 2);
-
-        Log::info("[RecalculadorICC] ICC recalculado para animal_id: {$pesaje->animal_id} → ICC: {$icc}");
+            Log::info("[RecalculadorICC] ICC recalculado — animal_id: {$pesaje->animal_id} → ICC: {$icc}");
+        } catch (\InvalidArgumentException $e) {
+            Log::warning("[RecalculadorICC] Raza no reconocida para animal_id: {$pesaje->animal_id}");
+        }
+       
     }
 }

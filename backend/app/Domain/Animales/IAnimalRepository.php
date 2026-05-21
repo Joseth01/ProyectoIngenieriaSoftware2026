@@ -1,5 +1,10 @@
 <?php
 
+// Solo los repositorios concretos (EloquentAnimalRepository, InMemoryAnimalRepository)
+// implementan esta interfaz. Los SERVICIOS dependen de la interfaz mínima que necesitan:
+//   - AnimalService  → IAnimalLector + IAnimalEscritor 
+//   - ReporteService → solo IAnimalLector
+
 namespace App\Domain\Animales;
 
 use App\Models\Animal;
@@ -10,17 +15,7 @@ use App\Models\Animal;
  * ReporteService y AnimalService dependen de ESTA interfaz.
  * Cambiar el ORM (Eloquent → Doctrine) = nueva clase, cero cambios en servicios.
  */
-interface IAnimalRepository
+interface IAnimalRepository extends IAnimalLector, IAnimalEscritor
 {
-    public function findByArete(string $arete): ?Animal;
-
-    public function findAllByFinca(int $fincaId): array;
-
-    public function findWithPesajes(int $id): ?Animal;
-
-    public function save(Animal $animal): void;
-
-    public function delete(int $id): void;
-
-    public function all(): array;
+    
 }

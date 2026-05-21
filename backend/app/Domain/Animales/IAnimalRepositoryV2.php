@@ -1,5 +1,5 @@
 <?php
-// ✅ REPARACIÓN ISP — interfaz compuesta para quien necesita ambas operaciones
+// ELIMINAR
 // Archivo: app/Domain/Animales/IAnimalRepositoryV2.php
 //
 // Solo los repositorios concretos (EloquentAnimalRepository, InMemoryAnimalRepository)
