@@ -147,4 +147,20 @@ class PesajeController extends Controller
         'Pesaje eliminado correctamente'
         );
     }
+    public function estimarPeso(Request $request)
+{
+    $request->validate([
+        'imagen' => 'required|image'
+    ]);
+
+    $ruta = $request->file('imagen')->store('pesajes');
+
+    $servicioIA = new ServicioIA();
+
+    $resultado = $servicioIA->analizarImagen(
+        storage_path('app/' . $ruta)
+    );
+
+    return response()->json($resultado);
+}
 }
