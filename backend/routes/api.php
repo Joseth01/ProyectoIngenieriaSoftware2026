@@ -18,6 +18,7 @@ Route::prefix('pesajes')->group(function () {
     Route::get('/{id}', [PesajeController::class, 'obtener']);
     Route::put('/{id}', [PesajeController::class, 'actualizar']);
     Route::delete('/{id}', [PesajeController::class, 'eliminar']);
+    Route::post('/estimar-peso', [PesajeController::class, 'estimarPeso']);
 //--------------------------------------
 
 });
