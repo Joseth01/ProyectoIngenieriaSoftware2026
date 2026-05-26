@@ -20,7 +20,11 @@ const routes: Array<RouteRecordRaw> = [
          Falta esta vista                                */
     ]
   },
-  { path: '/login', component: () => import('../views/LoginPage.vue') }
+  { path: '/login', component: () => import('../views/LoginPage.vue') },
+  {
+  path: '/registro',
+  component: () => import('../views/RegistroPage.vue')
+}
 ];
 
 const router = createRouter({
@@ -29,14 +33,54 @@ const router = createRouter({
 });
 
 router.beforeEach((to, from, next) => {
+
   const user = localStorage.getItem('user');
-  if (!user && to.path !== '/login') {
+
+  /*
+    RUTAS PÚBLICAS
+  */
+
+  const rutasPublicas = [
+    '/login',
+    '/registro'
+  ];
+
+  /*
+    SI NO HAY USUARIO
+  */
+
+  if (!user && !rutasPublicas.includes(to.path)) {
+
     next('/login');
-  } else if (user && to.path === '/login') {
-    next('/tabs/dashboard');
-  } else {
-    next();
+
   }
+
+  /*
+    SI YA ESTÁ LOGUEADO
+  */
+
+  else if (
+    user &&
+    (
+      to.path === '/login' ||
+      to.path === '/registro'
+    )
+  ) {
+
+    next('/tabs/dashboard');
+
+  }
+
+  /*
+    TODO OK
+  */
+
+  else {
+
+    next();
+
+  }
+
 });
 
 export default router; 
