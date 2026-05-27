@@ -1,6 +1,14 @@
-export const API_BASE = '/api';
+export const API_BASE = 'http://127.0.0.1:8000/api';
 
-// ─── DTOs ──────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// DTOs
+// ─────────────────────────────────────────────
+
+export interface ApiResponse<T> {
+  exito: boolean;
+  mensaje: string;
+  datos: T;
+}
 
 export interface RazaDto {
   id: number;
@@ -25,147 +33,296 @@ export interface AnimalDto {
   nombre: string | null;
   raza_id: number | null;
   raza?: RazaDto;
+
   fecha_nacimiento: string | null;
   estado: string;
+
   finca_id: number | null;
   finca?: FincaDto;
 }
 
 export interface PesajeDto {
   id: number;
+
   animal_id: number;
+
   peso_estimado: number | string;
   peso_real: number | string | null;
+
   fecha: string;
+
   fuente_id: number | null;
+
   fuente?: FuentePesajeDto;
   animal?: AnimalDto;
 }
 
 export interface ReporteDto {
   id: number;
+
   user_id: number;
+
   tipo: string;
   archivo_url: string | null;
+
   fecha: string;
 }
 
-// Backend wraps some responses in { exito, datos }
-export interface ApiResponse<T> {
-  exito: boolean;
-  datos: T;
-  mensaje?: string;
-}
+// ─────────────────────────────────────────────
+// FETCH BASE
+// ─────────────────────────────────────────────
 
-// Legacy alias used by DashboardPage
-export interface PesajesResponse extends ApiResponse<PesajeDto[]> {}
+async function fetchJson<T>(
+  path: string,
+  options?: RequestInit
+): Promise<T> {
 
-// ─── Core fetch ────────────────────────────────────────────────────────────
+  const token = localStorage.getItem('token');
 
-async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(`${API_BASE}${path}`, {
+
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
-      ...options?.headers,
+
+      ...(token
+        ? { Authorization: `Bearer ${token}` }
+        : {}),
+
+      ...options?.headers
     },
-    ...options,
+
+    ...options
   });
-  if (!res.ok) {
-    throw new Error(`API ${res.status}: ${res.statusText}`);
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data?.mensaje ||
+      `Error ${response.status}`
+    );
   }
-  return res.json() as Promise<T>;
+
+  return data as T;
 }
 
-// ─── Animales ──────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// ANIMALES
+// ─────────────────────────────────────────────
 
-export const getAnimales = (): Promise<AnimalDto[]> =>
-  fetchJson<AnimalDto[]>('/animales');
+export const getAnimales = () =>
+  fetchJson<ApiResponse<AnimalDto[]>>('/animales');
 
-export const getAnimal = (id: number): Promise<AnimalDto> =>
-  fetchJson<AnimalDto>(`/animales/${id}`);
+export const getAnimal = (id: number) =>
+  fetchJson<ApiResponse<AnimalDto>>(`/animales/${id}`);
 
-export const buscarPorArete = (arete: string): Promise<AnimalDto> =>
-  fetchJson<AnimalDto>(`/animales/arete/${encodeURIComponent(arete)}`);
+export const buscarPorArete = (arete: string) =>
+  fetchJson<ApiResponse<AnimalDto>>(
+    `/animales/arete/${encodeURIComponent(arete)}`
+  );
 
-export const getHistorialAnimal = (id: number): Promise<PesajeDto[]> =>
-  fetchJson<PesajeDto[]>(`/animales/${id}/historial`);
+export const getHistorialAnimal = (id: number) =>
+  fetchJson<ApiResponse<PesajeDto[]>>(
+    `/animales/${id}/historial`
+  );
 
-export const crearAnimal = (data: Partial<AnimalDto>): Promise<AnimalDto> =>
-  fetchJson<AnimalDto>('/animales', { method: 'POST', body: JSON.stringify(data) });
+export const crearAnimal = (
+  data: Partial<AnimalDto>
+) =>
+  fetchJson<ApiResponse<AnimalDto>>(
+    '/animales',
+    {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }
+  );
 
-export const actualizarAnimal = (id: number, data: Partial<AnimalDto>): Promise<AnimalDto> =>
-  fetchJson<AnimalDto>(`/animales/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export const actualizarAnimal = (
+  id: number,
+  data: Partial<AnimalDto>
+) =>
+  fetchJson<ApiResponse<AnimalDto>>(
+    `/animales/${id}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }
+  );
 
-export const eliminarAnimal = (id: number): Promise<void> =>
-  fetchJson<void>(`/animales/${id}`, { method: 'DELETE' });
+export const eliminarAnimal = (id: number) =>
+  fetchJson<ApiResponse<void>>(
+    `/animales/${id}`,
+    {
+      method: 'DELETE'
+    }
+  );
 
-// ─── Pesajes ───────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// PESAJES
+// ─────────────────────────────────────────────
 
-export const getPesajes = (): Promise<PesajesResponse> =>
-  fetchJson<PesajesResponse>('/pesajes');
+export const getPesajes = () =>
+  fetchJson<ApiResponse<PesajeDto[]>>('/pesajes');
 
-export const getPesaje = (id: number): Promise<PesajeDto> =>
-  fetchJson<PesajeDto>(`/pesajes/${id}`);
+export const getPesaje = (id: number) =>
+  fetchJson<ApiResponse<PesajeDto>>(
+    `/pesajes/${id}`
+  );
 
-export const getPesajesByAnimal = (animalId: number): Promise<PesajeDto[]> =>
-  fetchJson<PesajeDto[]>(`/pesajes/animal/${animalId}`);
+export const getPesajesByAnimal = (
+  animalId: number
+) =>
+  fetchJson<ApiResponse<PesajeDto[]>>(
+    `/pesajes/animal/${animalId}`
+  );
 
-export const crearPesaje = (data: Partial<PesajeDto>): Promise<ApiResponse<PesajeDto>> =>
-  fetchJson<ApiResponse<PesajeDto>>('/pesajes', { method: 'POST', body: JSON.stringify(data) });
+export const crearPesaje = (
+  data: Partial<PesajeDto>
+) =>
+  fetchJson<ApiResponse<PesajeDto>>(
+    '/pesajes',
+    {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }
+  );
 
-export const actualizarPesaje = (id: number, data: Partial<PesajeDto>): Promise<ApiResponse<PesajeDto>> =>
-  fetchJson<ApiResponse<PesajeDto>>(`/pesajes/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export const actualizarPesaje = (
+  id: number,
+  data: Partial<PesajeDto>
+) =>
+  fetchJson<ApiResponse<PesajeDto>>(
+    `/pesajes/${id}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }
+  );
 
-export const eliminarPesaje = (id: number): Promise<void> =>
-  fetchJson<void>(`/pesajes/${id}`, { method: 'DELETE' });
+export const eliminarPesaje = (id: number) =>
+  fetchJson<ApiResponse<void>>(
+    `/pesajes/${id}`,
+    {
+      method: 'DELETE'
+    }
+  );
 
-// ─── Fincas ────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// FINCAS
+// ─────────────────────────────────────────────
 
-export const getFincas = (): Promise<FincaDto[]> =>
-  fetchJson<FincaDto[]>('/fincas');
+export const getFincas = () =>
+  fetchJson<ApiResponse<FincaDto[]>>(
+    '/fincas'
+  );
 
-export const getFinca = (id: number): Promise<FincaDto> =>
-  fetchJson<FincaDto>(`/fincas/${id}`);
+export const getFinca = (id: number) =>
+  fetchJson<ApiResponse<FincaDto>>(
+    `/fincas/${id}`
+  );
 
-export const getFincasByUsuario = (userId: number): Promise<FincaDto[]> =>
-  fetchJson<FincaDto[]>(`/fincas/usuario/${userId}`);
+export const getFincasByUsuario = (
+  userId: number
+) =>
+  fetchJson<ApiResponse<FincaDto[]>>(
+    `/fincas/usuario/${userId}`
+  );
 
-export const crearFinca = (data: Partial<FincaDto>): Promise<FincaDto> =>
-  fetchJson<FincaDto>('/fincas', { method: 'POST', body: JSON.stringify(data) });
+export const crearFinca = (
+  data: Partial<FincaDto>
+) =>
+  fetchJson<ApiResponse<FincaDto>>(
+    '/fincas',
+    {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }
+  );
 
-export const actualizarFinca = (id: number, data: Partial<FincaDto>): Promise<FincaDto> =>
-  fetchJson<FincaDto>(`/fincas/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export const actualizarFinca = (
+  id: number,
+  data: Partial<FincaDto>
+) =>
+  fetchJson<ApiResponse<FincaDto>>(
+    `/fincas/${id}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }
+  );
 
-export const eliminarFinca = (id: number): Promise<void> =>
-  fetchJson<void>(`/fincas/${id}`, { method: 'DELETE' });
+export const eliminarFinca = (id: number) =>
+  fetchJson<ApiResponse<void>>(
+    `/fincas/${id}`,
+    {
+      method: 'DELETE'
+    }
+  );
 
-// ─── Reportes ──────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// REPORTES
+// ─────────────────────────────────────────────
 
-export const getReportes = (): Promise<ReporteDto[]> =>
-  fetchJson<ReporteDto[]>('/reportes');
+export const getReportes = () =>
+  fetchJson<ApiResponse<ReporteDto[]>>(
+    '/reportes'
+  );
 
-export const getReporte = (id: number): Promise<ReporteDto> =>
-  fetchJson<ReporteDto>(`/reportes/${id}`);
+export const getReporte = (id: number) =>
+  fetchJson<ApiResponse<ReporteDto>>(
+    `/reportes/${id}`
+  );
 
-export const getReportesByUsuario = (userId: number): Promise<ReporteDto[]> =>
-  fetchJson<ReporteDto[]>(`/reportes/usuario/${userId}`);
+export const getReportesByUsuario = (
+  userId: number
+) =>
+  fetchJson<ApiResponse<ReporteDto[]>>(
+    `/reportes/usuario/${userId}`
+  );
 
-export const crearReporte = (data: Partial<ReporteDto>): Promise<ReporteDto> =>
-  fetchJson<ReporteDto>('/reportes', { method: 'POST', body: JSON.stringify(data) });
+export const crearReporte = (
+  data: Partial<ReporteDto>
+) =>
+  fetchJson<ApiResponse<ReporteDto>>(
+    '/reportes',
+    {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }
+  );
 
-// ─── Helpers ───────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────
 
-export function pesoNumerico(pesaje: PesajeDto): number {
-  return Number(pesaje.peso_real ?? pesaje.peso_estimado ?? 0);
+export function pesoNumerico(
+  pesaje: PesajeDto
+): number {
+
+  return Number(
+    pesaje.peso_real ??
+    pesaje.peso_estimado ??
+    0
+  );
 }
 
-export function formatFecha(value: string): string {
+export function formatFecha(
+  value: string
+): string {
+
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat('es-CR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(date);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat(
+    'es-CR',
+    {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    }
+  ).format(date);
 }
