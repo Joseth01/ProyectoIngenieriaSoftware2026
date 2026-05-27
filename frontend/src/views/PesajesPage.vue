@@ -452,7 +452,7 @@ async function guardar() {
 
       animal_id: animalSel.value.id,
 
-      peso: peso.value,
+      peso_estimado: peso.value,
 
       peso_real:
         pesoReal.value || undefined,
