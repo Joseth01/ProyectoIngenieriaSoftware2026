@@ -72,8 +72,8 @@ Route::prefix('animales')->group(function () {
 
 });
 // RUTAS DE USUARIOS
-Route::prefix('usuarios')->group(function () {
-
+    Route::prefix('usuarios')->group(function () {
+    
     // REGISTRO
     Route::post('/registrar', [UsuarioController::class, 'registrar']);
     Route::post('/registro', [UsuarioController::class, 'registrar']);
@@ -87,7 +87,7 @@ Route::prefix('usuarios')->group(function () {
         Route::get('/perfil', [UsuarioController::class, 'perfil']);
 
         Route::post('/logout', [UsuarioController::class, 'logout']);
-
+        Route::get('/perfil-completo', [UsuarioController::class, 'perfilCompleto']);
     });
 
 });

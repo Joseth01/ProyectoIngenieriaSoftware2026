@@ -175,7 +175,6 @@
 <script setup lang="ts">
 
 import { ref, onMounted } from 'vue';
-
 import { useRouter } from 'vue-router';
 
 import {
@@ -183,70 +182,71 @@ import {
   IonContent
 } from '@ionic/vue';
 
+import {
+  loginUsuario
+} from '@/services/api';
+
 const router = useRouter();
 
 const email = ref('');
-
 const password = ref('');
 
 const loading = ref(false);
-
 const errorMsg = ref('');
 
 const mostrarPassword = ref(false);
 
-/* LOGIN */
-
 const login = async () => {
+
+  errorMsg.value = '';
 
   if (!email.value || !password.value) {
 
-    errorMsg.value = 'Completa todos los campos.';
+    errorMsg.value =
+      'Completa todos los campos.';
+
     return;
-
   }
-
-  errorMsg.value = '';
 
   loading.value = true;
 
   try {
 
-    /*
-      MÁS ADELANTE AQUÍ IRÁ:
-      axios.post('/api/login')
-    */
+    const response =
+      await loginUsuario(
+        email.value,
+        password.value
+      );
 
-    await new Promise(resolve => setTimeout(resolve, 900));
+    const datos =
+      response.datos;
 
-    const usuario = {
-
-      nombre: email.value.split('@')[0],
-
-      email: email.value
-
-    };
+    localStorage.setItem(
+      'token',
+      datos.token
+    );
 
     localStorage.setItem(
       'user',
-      JSON.stringify(usuario)
+      JSON.stringify(
+        datos.usuario
+      )
     );
 
-    email.value = '';
-
-    password.value = '';
-
-    router.push('/tabs/dashboard');
+    router.replace(
+      '/tabs/dashboard'
+    );
 
   }
+  catch (error: any) {
 
-  catch (error) {
+    console.error(error);
 
     errorMsg.value =
-      'No fue posible iniciar sesión.';
+      error?.message ??
+      'Credenciales incorrectas';
 
   }
-
   finally {
 
     loading.value = false;
@@ -255,23 +255,22 @@ const login = async () => {
 
 };
 
-/* IR A REGISTRO */
-
 const irRegistro = () => {
 
   router.push('/registro');
 
 };
 
-/* SI YA HAY SESIÓN */
-
 onMounted(() => {
 
-  const user = localStorage.getItem('user');
+  const token =
+    localStorage.getItem('token');
 
-  if (user) {
+  if (token) {
 
-    router.push('/tabs/dashboard');
+    router.replace(
+      '/tabs/dashboard'
+    );
 
   }
 

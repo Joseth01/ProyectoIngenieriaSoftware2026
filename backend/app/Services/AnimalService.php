@@ -54,8 +54,11 @@ class AnimalService
         return $this->animalRepository->findAllByFinca($fincaId);
     }
 
-    public function listarTodos(): array
+    public function listarTodos()
     {
-        return $this->animalRepository->all();
+           return \App\Models\Animal::with([
+        'raza',
+        'finca'
+    ])->get();
     }
 }

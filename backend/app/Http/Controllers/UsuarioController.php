@@ -7,9 +7,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\JsonResponse;
 use App\Helpers\ApiResponse;
+use App\Services\UsuarioService;
 
 class UsuarioController extends Controller
 {
+    public function __construct(
+    private readonly UsuarioService $usuarioService
+) {}
     public function registrar(Request $request): JsonResponse
     {
         $datos = $request->validate([
@@ -81,5 +85,20 @@ class UsuarioController extends Controller
         return ApiResponse::success(
             'Logout exitoso'
         );
+    }
+    public function perfilCompleto(
+    Request $request
+): JsonResponse {
+
+    $datos = $this->usuarioService
+        ->obtenerPerfilCompleto(
+            $request->user()
+        );
+
+    return ApiResponse::success(
+        'Perfil completo obtenido correctamente',
+        $datos
+    );
+
     }
 }

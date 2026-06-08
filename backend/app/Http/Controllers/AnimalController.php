@@ -30,7 +30,10 @@ class AnimalController extends Controller
         ]);
 
         $animal = $this->animalService->registrar($request->all());
-
+        $animal->load([
+            'raza',
+            'finca'
+            ]);
         return response()->json([
             'exito'  => true,
             'mensaje' => 'Animal registrado correctamente',

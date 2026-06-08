@@ -263,6 +263,19 @@ import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { IonPage, IonContent, IonModal, toastController } from '@ionic/vue';
 
+import { onMounted } from 'vue';
+import { getPerfilCompleto } from '@/services/api';
+
+onMounted(async () => {
+  try {
+    const response = await getPerfilCompleto();
+
+    console.log('PERFIL COMPLETO:', response);
+  } catch (error) {
+    console.error('ERROR PERFIL:', error);
+  }
+});
+
 interface FincaLocal { nombre: string; cabezas: number; }
 
 const router   = useRouter();
