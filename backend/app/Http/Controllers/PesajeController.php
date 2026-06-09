@@ -209,25 +209,35 @@ class PesajeController extends Controller
     public function estimarPeso(Request $request): JsonResponse
     {
         $request->validate([
-            'imagen' => 'required|image|max:10240'
+            'imagen'      => 'required|image|max:10240',
+            'raza'        => 'nullable|string|max:50',
+            'edad_meses'  => 'nullable|integer|min:0',
         ]);
 
         try {
-            $ruta = $request->file('imagen')->store('pesajes');
+            $rutaRelativa = $request->file('imagen')->store('pesajes');
+            $raza         = $request->input('raza', 'brahman');
+            $edadMeses    = (int) $request->input('edad_meses', 0);
 
-            $rutaCompleta = storage_path('app/' . $ruta);
-
-            $resultado = $this->servicioIA->analizarImagen($rutaCompleta);
-
-            return ApiResponse::success(
-                'Peso estimado correctamente',
-                $resultado
+            $resultado = $this->servicioIA->analizarImagen(
+                $rutaRelativa,
+                $raza,
+                $edadMeses
             );
-        } catch (Throwable $error) {
+
+            return ApiResponse::success('Peso estimado correctamente', $resultado);
+
+        } catch (\Throwable $error) {
+            // Distinguir errores de validación de imagen (422) de errores del servidor (500)
+            $esErrorImagen = str_contains($error->getMessage(), 'bovino')
+                          || str_contains($error->getMessage(), 'imagen')
+                          || str_contains($error->getMessage(), 'IA')
+                          || str_contains($error->getMessage(), 'animal');
+
             return ApiResponse::error(
                 $error->getMessage(),
                 [],
-                500
+                $esErrorImagen ? 422 : 500
             );
         }
     }

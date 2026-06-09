@@ -1,0 +1,4 @@
+flask==3.1.1
+ultralytics==8.3.163
+Pillow==11.2.1
+gunicorn==23.0.0
