@@ -52,11 +52,35 @@ def preprocess(img: Image.Image) -> np.ndarray:
     return arr[np.newaxis, ...]                                  # (1,3,H,W)
 
 
+def iou(a: dict, b: dict) -> float:
+    """Intersection over Union entre dos bounding boxes."""
+    ix1 = max(a["x1"], b["x1"])
+    iy1 = max(a["y1"], b["y1"])
+    ix2 = min(a["x2"], b["x2"])
+    iy2 = min(a["y2"], b["y2"])
+    inter = max(0, ix2 - ix1) * max(0, iy2 - iy1)
+    area_a = a["w"] * a["h"]
+    area_b = b["w"] * b["h"]
+    union = area_a + area_b - inter
+    return inter / union if union > 0 else 0.0
+
+
+def nms(detections: list, iou_threshold: float = 0.45) -> list:
+    """Non-Maximum Suppression: elimina cajas redundantes sobre el mismo animal."""
+    detections = sorted(detections, key=lambda d: d["conf"], reverse=True)
+    kept = []
+    for det in detections:
+        if all(iou(det, k) < iou_threshold for k in kept):
+            kept.append(det)
+    return kept
+
+
 def postprocess(output: np.ndarray, orig_w: int, orig_h: int) -> list:
     """
     YOLOv8 ONNX output: [1, 84, 8400]
       - filas 0-3 : cx, cy, w, h  (en píxeles del input 640x640)
       - filas 4-83: scores por clase COCO
+    Aplica NMS para eliminar detecciones redundantes del mismo animal.
     """
     preds  = output[0]                  # (84, 8400)
     boxes  = preds[:4, :].T             # (8400, 4)
@@ -85,7 +109,7 @@ def postprocess(output: np.ndarray, orig_w: int, orig_h: int) -> list:
             "w": x2 - x1, "h": y2 - y1,
         })
 
-    return detections
+    return nms(detections)
 
 
 def estimar_peso(bbox_w, bbox_h, img_w, img_h, raza, edad_meses) -> dict:
