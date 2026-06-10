@@ -54,7 +54,7 @@
                 <div class="corner br"></div>
               </div>
 
-              <div class="vf-hint" v-if="!imagenPreview">
+              <div v-if="!imagenPreview" class="vf-hint">
                 <span class="vf-ico">📷</span>
                 <span>Selecciona una foto o toma una captura</span>
               </div>
@@ -221,6 +221,7 @@
 
             <div class="info-step">
               <div class="step-num">1</div>
+
               <div>
                 <div class="step-title">Selecciona el animal</div>
                 <div class="step-sub">Elige de tu inventario o crea uno nuevo</div>
@@ -229,6 +230,7 @@
 
             <div class="info-step">
               <div class="step-num">2</div>
+
               <div>
                 <div class="step-title">Carga una imagen</div>
                 <div class="step-sub">Puedes tomar foto o elegir desde galería</div>
@@ -237,6 +239,7 @@
 
             <div class="info-step">
               <div class="step-num">3</div>
+
               <div>
                 <div class="step-title">Obtén el peso estimado</div>
                 <div class="step-sub">El servicio IA procesa la imagen y calcula el peso</div>
@@ -371,8 +374,17 @@
                   v-model.number="nuevoAnimal.raza_id"
                   class="field-input"
                 >
-                  <option :value="1">Brahman</option>
-                  <option :value="2">Holstein</option>
+                  <option :value="0" disabled>
+                    Selecciona una raza
+                  </option>
+
+                  <option
+                    v-for="raza in razas"
+                    :key="raza.id"
+                    :value="raza.id"
+                  >
+                    {{ raza.nombre }}
+                  </option>
                 </select>
               </div>
 
@@ -469,9 +481,11 @@ import {
 } from '@capacitor/camera';
 
 import {
-  AnimalDto,
-  FincaDto,
+  type AnimalDto,
+  type FincaDto,
+  type RazaDto,
   getAnimales,
+  getRazas,
   getPerfilCompleto,
   crearAnimalRapido,
   crearPesaje,
@@ -487,6 +501,7 @@ type Estado =
 
 const animales = ref<AnimalDto[]>([]);
 const fincas = ref<FincaDto[]>([]);
+const razas = ref<RazaDto[]>([]);
 
 const animalSel = ref<AnimalDto | null>(null);
 
@@ -520,7 +535,7 @@ const alzada = ref(0);
 const nuevoAnimal = ref({
   numero_arete: '',
   nombre: '',
-  raza_id: 1,
+  raza_id: 0,
   fecha_nacimiento: new Date().toISOString().slice(0, 10),
   finca_id: 0
 });
@@ -579,32 +594,18 @@ function detalleAnimal(animal: AnimalDto): string {
   return `#${animal.numero_arete} · ${animal.raza?.nombre || 'Sin raza'}`;
 }
 
-function nombreRazaPorId(id: number): string {
-  if (id === 1) {
-    return 'brahman';
-  }
-
-  if (id === 2) {
-    return 'nelore';
-  }
-
-  if (id === 3) {
-    return 'angus';
-  }
-
-  return 'brahman';
-}
-
 async function cargarDatos() {
   loadingAnimales.value = true;
 
   try {
     const [
       animalesResponse,
-      perfilResponse
+      perfilResponse,
+      razasResponse
     ] = await Promise.all([
       getAnimales(),
-      getPerfilCompleto()
+      getPerfilCompleto(),
+      getRazas()
     ]);
 
     animales.value =
@@ -613,12 +614,23 @@ async function cargarDatos() {
     fincas.value =
       perfilResponse.datos.fincas || [];
 
+    razas.value =
+      razasResponse.datos || [];
+
     if (
       fincas.value.length > 0 &&
       nuevoAnimal.value.finca_id === 0
     ) {
       nuevoAnimal.value.finca_id =
         fincas.value[0].id;
+    }
+
+    if (
+      razas.value.length > 0 &&
+      nuevoAnimal.value.raza_id === 0
+    ) {
+      nuevoAnimal.value.raza_id =
+        razas.value[0].id;
     }
 
   } catch (error: any) {
@@ -667,6 +679,12 @@ async function guardarNuevoAnimal() {
     return;
   }
 
+  if (!nuevoAnimal.value.raza_id) {
+    errorCrearAnimal.value =
+      'Selecciona una raza.';
+    return;
+  }
+
   if (!nuevoAnimal.value.fecha_nacimiento) {
     errorCrearAnimal.value =
       'Selecciona la fecha de nacimiento.';
@@ -687,7 +705,6 @@ async function guardarNuevoAnimal() {
         numero_arete: nuevoAnimal.value.numero_arete.trim(),
         nombre: nuevoAnimal.value.nombre.trim(),
         raza_id: nuevoAnimal.value.raza_id,
-        nombre_raza: nombreRazaPorId(nuevoAnimal.value.raza_id),
         fecha_nacimiento: nuevoAnimal.value.fecha_nacimiento,
         finca_id: nuevoAnimal.value.finca_id
       });
@@ -703,7 +720,7 @@ async function guardarNuevoAnimal() {
     nuevoAnimal.value = {
       numero_arete: '',
       nombre: '',
-      raza_id: 1,
+      raza_id: razas.value[0]?.id || 0,
       fecha_nacimiento: new Date().toISOString().slice(0, 10),
       finca_id: fincas.value[0]?.id || 0
     };
@@ -727,9 +744,17 @@ async function guardarNuevoAnimal() {
 }
 
 async function tomarFoto() {
-  await obtenerImagenCapacitor(
-    CameraSource.Camera
-  );
+  try {
+    await obtenerImagenCapacitor(
+      CameraSource.Camera
+    );
+  } catch (error: any) {
+    feedbackMsg.value =
+      error?.message ||
+      'No se pudo tomar la foto.';
+
+    feedbackOk.value = false;
+  }
 }
 
 async function cargarGaleria() {
@@ -745,39 +770,31 @@ async function cargarGaleria() {
 async function obtenerImagenCapacitor(
   source: CameraSource
 ) {
-  try {
-    const foto =
-      await Camera.getPhoto({
-        quality: 85,
-        allowEditing: false,
-        resultType: CameraResultType.Uri,
-        source
-      });
+  const foto =
+    await Camera.getPhoto({
+      quality: 85,
+      allowEditing: false,
+      resultType: CameraResultType.Uri,
+      source
+    });
 
-    if (!foto.webPath) {
-      throw new Error(
-        'No se pudo obtener la imagen.'
-      );
-    }
-
-    imagenPreview.value =
-      foto.webPath;
-
-    const response =
-      await fetch(foto.webPath);
-
-    imagenBlob.value =
-      await response.blob();
-
-    estado.value = 'idle';
-    feedbackMsg.value = '';
-
-  } catch (error: any) {
+  if (!foto.webPath) {
     throw new Error(
-      error?.message ||
-      'No se pudo cargar la imagen.'
+      'No se pudo obtener la imagen.'
     );
   }
+
+  imagenPreview.value =
+    foto.webPath;
+
+  const response =
+    await fetch(foto.webPath);
+
+  imagenBlob.value =
+    await response.blob();
+
+  estado.value = 'idle';
+  feedbackMsg.value = '';
 }
 
 function cargarImagenDesdeInput(event: Event) {
