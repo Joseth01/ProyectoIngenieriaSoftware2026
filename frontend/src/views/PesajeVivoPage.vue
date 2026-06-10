@@ -920,7 +920,6 @@ async function guardar() {
       peso_estimado: pesoEstimado.value,
       peso_real: null,
       fecha: new Date().toISOString().slice(0, 10),
-      fuente_id: 1
     });
 
     feedbackMsg.value =
