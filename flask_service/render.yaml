@@ -4,9 +4,9 @@ services:
     runtime: python
     buildCommand: >
       pip install -r requirements.txt &&
-      pip install "ultralytics==8.3.163" &&
+      pip install "ultralytics==8.3.163" onnxscript &&
       python export_model.py &&
-      pip uninstall -y torch torchvision torchaudio ultralytics
+      pip uninstall -y torch torchvision torchaudio ultralytics onnxscript
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 120 --workers 1
     envVars:
       - key: PYTHON_VERSION
