@@ -1,0 +1,37 @@
+name: CI - BovWeight CR
+
+on:
+  push:
+    branches: [ main, develop, feature/frontend ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  tests-backend:
+    name: Backend Tests (Laravel)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, sqlite3, pdo_sqlite
+
+      - name: Install dependencies
+        working-directory: backend
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Copy .env
+        working-directory: backend
+        run: cp .env.example .env
+
+      - name: Generate key
+        working-directory: backend
+        run: php artisan key:generate
+
+      - name: Run tests
+        working-directory: backend
+        run: php artisan test
