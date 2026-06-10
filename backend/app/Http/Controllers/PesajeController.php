@@ -208,6 +208,10 @@ class PesajeController extends Controller
 
     public function estimarPeso(Request $request): JsonResponse
     {
+        // El microservicio en Render puede tardar hasta 60 s en despertar (free tier).
+        // Aumentamos el límite de ejecución solo para este endpoint.
+        set_time_limit(120);
+
         $request->validate([
             'imagen'      => 'required|image|max:10240',
             'raza'        => 'nullable|string|max:50',

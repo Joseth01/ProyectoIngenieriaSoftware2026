@@ -69,7 +69,7 @@
 
               <div class="analyze-msg">
                 <div class="spinner"></div>
-                <span>Analizando imagen…</span>
+                <span>{{ mensajeAnalisis }}</span>
               </div>
             </div>
 
@@ -517,6 +517,9 @@ const confianza = ref(0);
 const cc = ref('---');
 const alzada = ref(0);
 
+const mensajeAnalisis = ref('Analizando imagen…');
+let timerAnalisis: ReturnType<typeof setTimeout> | null = null;
+
 const nuevoAnimal = ref({
   numero_arete: '',
   nombre: '',
@@ -821,6 +824,12 @@ async function analizarImagen() {
 
   estado.value = 'analizando';
   feedbackMsg.value = '';
+  mensajeAnalisis.value = 'Analizando imagen…';
+
+  // Si tarda más de 8 s (posible cold start en Render), avisamos al usuario
+  timerAnalisis = setTimeout(() => {
+    mensajeAnalisis.value = 'Despertando servicio de IA… (puede tardar ~30 s la primera vez)';
+  }, 8000);
 
   try {
     const response =
@@ -865,6 +874,12 @@ async function analizarImagen() {
       'Error al estimar el peso con IA.';
 
     feedbackOk.value = false;
+  } finally {
+    if (timerAnalisis) {
+      clearTimeout(timerAnalisis);
+      timerAnalisis = null;
+    }
+    mensajeAnalisis.value = 'Analizando imagen…';
   }
 }
 

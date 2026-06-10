@@ -1,6 +1,6 @@
 """
 BovWeight – Microservicio de estimación de peso bovino
-Flask + YOLOv8n (COCO pretrained, clase 19 = cow)
+Flask + YOLOv8n ONNX (sin PyTorch en runtime, ~100 MB RAM)
 
 POST /detectar
   Body (multipart/form-data):
@@ -9,80 +9,98 @@ POST /detectar
     edad    : (opcional) edad en meses
 
 Response 200:
-  {
-    "peso_estimado": 385.4,
-    "confianza": 88.2,
-    "alzada_estimada": 138.5,
-    "condicion_corporal": 3.2,
-    "mensaje": "..."
-  }
+  { "peso_estimado": 385.4, "confianza": 88.2,
+    "alzada_estimada": 138.5, "condicion_corporal": 3.2, "mensaje": "..." }
 
 Response 422:
-  {
-    "error": "...",
-    "codigo": "NO_BOVINO" | "MULTIPLES_ANIMALES" | "CALIDAD_INSUFICIENTE"
-  }
+  { "error": "...", "codigo": "NO_BOVINO" | "MULTIPLES_ANIMALES" | "COBERTURA_INSUFICIENTE" }
 """
 
 import io
 import os
 
+import numpy as np
+import onnxruntime as ort
 from flask import Flask, request, jsonify
 from PIL import Image
-from ultralytics import YOLO
 
 app = Flask(__name__)
 
-# YOLOv8n COCO pretrained se descarga automáticamente la primera vez (~6 MB)
-# Clase 19 en COCO = "cow"
-MODEL_PATH = os.environ.get("MODEL_PATH", "yolov8n.pt")
-COCO_COW_CLASS = 19
-MIN_CONFIDENCE = 0.40
+MODEL_PATH    = os.environ.get("MODEL_PATH", "yolov8n.onnx")
+COCO_COW_CLS  = 19
+MIN_CONF      = 0.40
+INPUT_SIZE    = 640
 
-_model = None
-
-
-def get_model() -> YOLO:
-    global _model
-    if _model is None:
-        _model = YOLO(MODEL_PATH)
-    return _model
+_session = None
 
 
-def estimar_peso(
-    bbox_w: float,
-    bbox_h: float,
-    img_w: float,
-    img_h: float,
-    raza: str,
-    edad_meses: int,
-) -> dict:
+def get_session() -> ort.InferenceSession:
+    global _session
+    if _session is None:
+        _session = ort.InferenceSession(
+            MODEL_PATH,
+            providers=["CPUExecutionProvider"]
+        )
+    return _session
+
+
+def preprocess(img: Image.Image) -> np.ndarray:
+    """Redimensiona y normaliza la imagen para YOLOv8."""
+    img_rgb    = img.convert("RGB").resize((INPUT_SIZE, INPUT_SIZE))
+    arr        = np.array(img_rgb, dtype=np.float32) / 255.0   # (H,W,3)
+    arr        = arr.transpose(2, 0, 1)                         # (3,H,W)
+    return arr[np.newaxis, ...]                                  # (1,3,H,W)
+
+
+def postprocess(output: np.ndarray, orig_w: int, orig_h: int) -> list:
     """
-    Estima peso a partir de proporciones del bounding box + metadatos.
-
-    Lógica:
-      - coverage  = fracción del frame que ocupa el bovino
-      - ratio     = ancho / alto del bbox (animales de perfil ~1.6–2.0)
-      - Peso base según raza (valores promedio adulto)
-      - Ajuste por edad (animales jóvenes pesan menos)
-      - Ajuste por cobertura relativa (animal más grande en frame → más cerca → más grande)
+    YOLOv8 ONNX output: [1, 84, 8400]
+      - filas 0-3 : cx, cy, w, h  (en píxeles del input 640x640)
+      - filas 4-83: scores por clase COCO
     """
+    preds  = output[0]                  # (84, 8400)
+    boxes  = preds[:4, :].T             # (8400, 4)
+    scores = preds[4:, :].T             # (8400, 80)
+
+    sx = orig_w / INPUT_SIZE
+    sy = orig_h / INPUT_SIZE
+
+    detections = []
+    for i in range(scores.shape[0]):
+        cls_id = int(np.argmax(scores[i]))
+        conf   = float(scores[i, cls_id])
+
+        if conf < MIN_CONF or cls_id != COCO_COW_CLS:
+            continue
+
+        cx, cy, w, h = boxes[i]
+        x1 = (cx - w / 2) * sx
+        y1 = (cy - h / 2) * sy
+        x2 = (cx + w / 2) * sx
+        y2 = (cy + h / 2) * sy
+
+        detections.append({
+            "conf": conf,
+            "x1": x1, "y1": y1, "x2": x2, "y2": y2,
+            "w": x2 - x1, "h": y2 - y1,
+        })
+
+    return detections
+
+
+def estimar_peso(bbox_w, bbox_h, img_w, img_h, raza, edad_meses) -> dict:
+    """Estima peso a partir de proporciones del bounding box + metadatos."""
     coverage = (bbox_w * bbox_h) / (img_w * img_h)
     aspect   = bbox_w / bbox_h if bbox_h > 0 else 1.6
 
-    # Pesos base por raza (kg, adulto)
     peso_base_raza = {
-        "brahman":  480.0,
-        "holstein": 550.0,
-        "angus":    560.0,
-        "nelore":   460.0,
-        "jersey":   420.0,
+        "brahman": 480.0, "holstein": 550.0,
+        "angus":   560.0, "nelore":   460.0, "jersey": 420.0,
     }
     peso_base = peso_base_raza.get(raza.lower().strip(), 490.0)
 
-    # Factor de madurez: < 12 meses = cría, 12–24 = novillo, > 24 = adulto
     if edad_meses <= 0:
-        factor_edad = 1.0          # sin información, asumir adulto
+        factor_edad = 1.0
     elif edad_meses < 12:
         factor_edad = 0.30
     elif edad_meses < 18:
@@ -94,31 +112,20 @@ def estimar_peso(
     else:
         factor_edad = 1.0
 
-    # Factor de cobertura: calibrado para que coverage ~0.30 = animal adulto
-    # de perfil a ~2 m de distancia
-    factor_cobertura = 0.60 + coverage * 1.35
-
-    # Factor de aspecto: animales de perfil tienen ratio ~1.6–2.0
-    # Si el ratio es muy bajo podría ser vista frontal (menos precisa)
+    factor_cob    = 0.60 + coverage * 1.35
     factor_aspecto = 0.92 if aspect < 1.2 else 1.0
 
-    peso = peso_base * factor_edad * factor_cobertura * factor_aspecto
+    peso    = peso_base * factor_edad * factor_cob * factor_aspecto
+    peso    = max(80.0, min(750.0, peso))
 
-    # Alzada estimada (cm) — proporcional al alto del bbox respecto al frame
-    altura_ratio = bbox_h / img_h
-    alzada = 90 + altura_ratio * 160          # rango ~90–170 cm
-    alzada = max(90.0, min(170.0, alzada))
+    alzada  = 90 + (bbox_h / img_h) * 160
+    alzada  = max(90.0, min(170.0, alzada))
 
-    # Condición corporal 1–5: correlaciona con coverage y cobertura
-    cc = 2.0 + coverage * 5.0
-    cc = max(1.0, min(5.0, round(cc, 1)))
-
-    # Peso dentro de rango bovino adulto razonable
-    peso = max(80.0, min(750.0, peso))
+    cc = max(1.0, min(5.0, round(2.0 + coverage * 5.0, 1)))
 
     return {
-        "peso_estimado":     round(peso, 1),
-        "alzada_estimada":   round(alzada, 1),
+        "peso_estimado":      round(peso, 1),
+        "alzada_estimada":    round(alzada, 1),
         "condicion_corporal": cc,
     }
 
@@ -128,37 +135,29 @@ def detectar():
     if "imagen" not in request.files:
         return jsonify({"error": "No se recibió imagen", "codigo": "SIN_IMAGEN"}), 400
 
-    raza        = request.form.get("raza", "brahman")
-    edad_meses  = int(request.form.get("edad", 0) or 0)
+    raza       = request.form.get("raza", "brahman")
+    edad_meses = int(request.form.get("edad", 0) or 0)
 
     try:
         img_bytes = request.files["imagen"].read()
-        img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+        img       = Image.open(io.BytesIO(img_bytes)).convert("RGB")
     except Exception as e:
-        return jsonify({"error": f"No se pudo leer la imagen: {str(e)}", "codigo": "CALIDAD_INSUFICIENTE"}), 422
+        return jsonify({"error": f"No se pudo leer la imagen: {e}", "codigo": "CALIDAD_INSUFICIENTE"}), 422
 
     img_w, img_h = img.size
 
-    # Detectar con YOLOv8
-    model   = get_model()
-    results = model(img, verbose=False)
-
-    vacas = []
-    for result in results:
-        for box in result.boxes:
-            cls  = int(box.cls[0])
-            conf = float(box.conf[0])
-            if cls == COCO_COW_CLASS and conf >= MIN_CONFIDENCE:
-                x1, y1, x2, y2 = box.xyxy[0].tolist()
-                vacas.append({
-                    "conf": conf,
-                    "x1": x1, "y1": y1, "x2": x2, "y2": y2,
-                    "w": x2 - x1, "h": y2 - y1,
-                })
+    try:
+        session = get_session()
+        inp     = preprocess(img)
+        name    = session.get_inputs()[0].name
+        output  = session.run(None, {name: inp})
+        vacas   = postprocess(output[0], img_w, img_h)
+    except Exception as e:
+        return jsonify({"error": f"Error en la detección: {e}"}), 500
 
     if len(vacas) == 0:
         return jsonify({
-            "error": "No se detectó un bovino en la imagen. Asegúrate de que el animal esté visible de perfil.",
+            "error": "No se detectó un bovino. Asegúrate de que el animal esté visible de perfil.",
             "codigo": "NO_BOVINO",
         }), 422
 
@@ -168,11 +167,9 @@ def detectar():
             "codigo": "MULTIPLES_ANIMALES",
         }), 422
 
-    # Usar la detección con mayor confianza
-    mejor = max(vacas, key=lambda v: v["conf"])
-
-    # Verificar que el animal ocupe un porcentaje razonable del frame
+    mejor    = max(vacas, key=lambda v: v["conf"])
     coverage = (mejor["w"] * mejor["h"]) / (img_w * img_h)
+
     if coverage < 0.05:
         return jsonify({
             "error": "El animal está muy lejos o es muy pequeño. Acércate más.",
@@ -180,22 +177,15 @@ def detectar():
         }), 422
 
     estimacion = estimar_peso(
-        bbox_w     = mejor["w"],
-        bbox_h     = mejor["h"],
-        img_w      = float(img_w),
-        img_h      = float(img_h),
-        raza       = raza,
-        edad_meses = edad_meses,
+        mejor["w"], mejor["h"], img_w, img_h, raza, edad_meses
     )
-
-    confianza_yolo = round(mejor["conf"] * 100, 1)
 
     return jsonify({
         "peso_estimado":      estimacion["peso_estimado"],
-        "confianza":          confianza_yolo,
+        "confianza":          round(mejor["conf"] * 100, 1),
         "alzada_estimada":    estimacion["alzada_estimada"],
         "condicion_corporal": estimacion["condicion_corporal"],
-        "mensaje":            "Estimación generada por YOLOv8 (COCO cow detection)",
+        "mensaje":            "Estimación generada por YOLOv8n ONNX",
     }), 200
 
 
