@@ -1,7 +1,6 @@
 <template>
   <ion-page>
     <ion-content :fullscreen="true" class="login-content">
-
       <div class="splash">
 
         <!-- decorative circles -->
@@ -10,7 +9,6 @@
 
         <!-- logo -->
         <div class="logo-wrap">
-
           <svg viewBox="0 0 50 50" fill="none" class="logo-svg">
             <ellipse cx="25" cy="32" rx="18" ry="11" fill="rgba(255,255,255,.18)" />
             <circle cx="25" cy="20" r="10" fill="white" />
@@ -31,7 +29,6 @@
               fill="none"
             />
           </svg>
-
         </div>
 
         <h1 class="brand">
@@ -44,6 +41,7 @@
           Control inteligente de peso para tu ganado bovino
         </p>
 
+        <!-- form card -->
         <div class="form-card">
 
           <!-- tabs login / registro -->
@@ -108,42 +106,24 @@
 
           <!-- correo -->
           <div class="field">
-
-            <label class="field-label">
-              Correo electrónico
-            </label>
-
+            <label class="field-label">Correo electrónico</label>
             <div class="field-input-wrap">
-
-              <span class="field-icon">
-                ✉️
-              </span>
-
+              <span class="field-icon">✉</span>
               <input
-                v-model.trim="email"
+                v-model="email"
                 type="email"
                 class="field-input"
                 placeholder="tucorreo@ejemplo.com"
                 @keyup.enter="submit"
               />
-
             </div>
-
           </div>
 
           <!-- contraseña -->
           <div class="field">
-
-            <label class="field-label">
-              Contraseña
-            </label>
-
+            <label class="field-label">Contraseña</label>
             <div class="field-input-wrap">
-
-              <span class="field-icon">
-                🔒
-              </span>
-
+              <span class="field-icon">🔒</span>
               <input
                 v-model="password"
                 :type="mostrarPassword ? 'text' : 'password'"
@@ -159,7 +139,6 @@
                 {{ mostrarPassword ? '🙈' : '👁' }}
               </button>
             </div>
-
           </div>
 
           <!-- confirmar contraseña (solo en registro) -->
@@ -204,7 +183,6 @@
         </p>
 
       </div>
-
     </ion-content>
   </ion-page>
 </template>
@@ -308,16 +286,10 @@ const hacerRegistro = async () => {
 
 // Si ya hay sesión, va directo al dashboard
 onMounted(() => {
-  const token =
-    localStorage.getItem('token');
-
-  if (token) {
-    router.replace(
-      '/tabs/dashboard'
-    );
+  if (localStorage.getItem('user')) {
+    router.push('/tabs/dashboard');
   }
 });
-
 </script>
 
 <style scoped>
@@ -336,24 +308,17 @@ onMounted(() => {
   );
   display: flex;
   flex-direction: column;
-
   align-items: center;
-
-  justify-content: center;
-
   padding: 48px 24px 32px;
-
   position: relative;
-
   overflow: hidden;
 }
 
 .deco {
   position: absolute;
-
   border-radius: 50%;
-
   background: rgba(255,255,255,.05);
+  pointer-events: none;
 }
 
 .deco-1 {
@@ -373,20 +338,13 @@ onMounted(() => {
 .logo-wrap {
   width: 84px;
   height: 84px;
-
   border-radius: 26px;
-
   background: rgba(255,255,255,.12);
-
   border: 1.5px solid rgba(255,255,255,.22);
-
   display: flex;
-
   align-items: center;
   justify-content: center;
-
   margin-bottom: 18px;
-
   backdrop-filter: blur(8px);
 }
 
@@ -396,8 +354,7 @@ onMounted(() => {
 }
 
 .brand {
-  font-size: 2.8rem;
-
+  font-size: 2.25rem;
   font-weight: 900;
   color: white;
   letter-spacing: -1px;
@@ -409,25 +366,19 @@ onMounted(() => {
 }
 
 .brand-sub {
-  font-size: .75rem;
-
+  font-size: .6875rem;
   letter-spacing: .18em;
-
-  color: rgba(255,255,255,.55);
-
-  margin: 4px 0 12px;
+  color: rgba(255,255,255,.5);
+  margin: 4px 0 10px;
+  text-transform: uppercase;
 }
 
 .brand-desc {
-  font-size: .95rem;
-
-  color: rgba(255,255,255,.78);
-
+  font-size: .9rem;
+  color: rgba(255,255,255,.7);
   text-align: center;
-
+  margin: 0 0 32px;
   line-height: 1.5;
-
-  margin-bottom: 34px;
 }
 
 /* ── form card ─────────────────────────────────────────────────────────── */
@@ -480,25 +431,17 @@ onMounted(() => {
 
 .field-label {
   display: block;
-
-  font-size: .9rem;
-
+  font-size: .8125rem;
   font-weight: 700;
-
   color: #374151;
-
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .field-input-wrap {
   display: flex;
-
   align-items: center;
-
   gap: 10px;
-
-  background: #F3F4F6;
-
+  background: #F2F5F3;
   border: 1.5px solid #E5E7EB;
   border-radius: 12px;
   padding: 11px 14px;
@@ -517,32 +460,12 @@ onMounted(() => {
 
 .field-input {
   flex: 1;
-
   border: none;
-
+  background: transparent;
   outline: none;
-
-  background: transparent;
-
-  font-size: 1rem;
-
+  font-size: .9375rem;
   color: #111827;
-
-  caret-color: #1E5631;
-}
-
-.field-input::placeholder {
-  color: #9CA3AF;
-}
-
-.toggle-password {
-  border: none;
-
-  background: transparent;
-
-  cursor: pointer;
-
-  font-size: 1rem;
+  font-family: inherit;
 }
 
 .field-input::placeholder {
@@ -568,17 +491,12 @@ onMounted(() => {
 /* ── messages ──────────────────────────────────────────────────────────── */
 
 .error-msg {
+  font-size: .8125rem;
+  color: #EF4444;
   background: #FEE2E2;
-
-  color: #DC2626;
-
-  padding: 10px 12px;
-
-  border-radius: 10px;
-
-  font-size: .82rem;
-
-  margin-bottom: 14px;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 0 0 14px;
 }
 
 .success-msg {
@@ -594,29 +512,13 @@ onMounted(() => {
 
 .btn-login {
   width: 100%;
-
   padding: 15px;
   background: linear-gradient(135deg, #1A3D28, #2D7A4A);
   color: white;
   font-size: .9375rem;
   font-weight: 700;
   border: none;
-
   border-radius: 14px;
-
-  background:
-    linear-gradient(
-      135deg,
-      #1A3D28,
-      #2D7A4A
-    );
-
-  color: white;
-
-  font-size: 1rem;
-
-  font-weight: 700;
-
   cursor: pointer;
   box-shadow: 0 4px 14px rgba(30,86,49,.35);
   transition: opacity .2s, transform .2s;
