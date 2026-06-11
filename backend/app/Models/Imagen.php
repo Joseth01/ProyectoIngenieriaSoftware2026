@@ -25,6 +25,6 @@ class Imagen extends Model
 
     public function pesaje()
     {
-        return $this->belongsTo(Pesaje::class);
+        return $this->belongsTo(Pesaje::class, 'pesaje_id');
     }
 }

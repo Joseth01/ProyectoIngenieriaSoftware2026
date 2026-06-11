@@ -21,3 +21,10 @@ dist/
 build/
 .env
 *.log
+.vscode/
+
+venv/
+__pycache__/
+*.pyc
+uploads/
+results/
