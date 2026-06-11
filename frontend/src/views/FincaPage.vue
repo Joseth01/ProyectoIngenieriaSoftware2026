@@ -161,7 +161,7 @@ let userId = 0;
 const cargarFincas = async () => {
   if (!userId) return;
   try {
-    fincas.value = await getFincasByUsuario(userId);
+    fincas.value = (await getFincasByUsuario(userId)).datos || [];
   } catch {
     errorGlobal.value = 'No se pudieron cargar las fincas.';
   }

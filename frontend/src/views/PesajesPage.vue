@@ -506,7 +506,7 @@ const abrirModal = async () => {
   try {
     const [aData, fData] = await Promise.all([
       getAnimales(),
-      userId ? getFincasByUsuario(userId) : Promise.resolve(fincas.value),
+      userId ? getFincasByUsuario(userId) : Promise.resolve({ exito: true, mensaje: '', datos: fincas.value }),
     ]);
     animales.value = aData.datos || [];
     fincas.value   = fData.datos || [];
@@ -555,14 +555,14 @@ const crearAnimal = async () => {
 
   guardandoAnimal.value = true;
   try {
-    const animal = await apiCrearAnimal({
+    const animal = (await apiCrearAnimal({
       numero_arete:     nuevoArete.value.trim(),
       nombre:           nuevoNombre.value.trim(),
       raza_id:          razaId,
       nombre_raza:      razaSel.nombre.toLowerCase(),
       fecha_nacimiento: nuevoFechaNacimiento.value,
       finca_id:         fincaId,
-    } as any);
+    } as any)).datos!;
 
     // Si se ingresó peso de ingreso, registrar el primer pesaje automáticamente.
     // El backend usa el patrón Strategy (metodo_estimacion requerido).

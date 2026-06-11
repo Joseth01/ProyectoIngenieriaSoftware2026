@@ -656,7 +656,7 @@ const descargarPDFReporte = async (tipo: string) => {
       columnas: ['Arete', 'Nombre', 'Último peso', 'Fecha', 'Estado'],
       widths:   [35, 50, 35, 32, 28],
       filas: datosSalud.value.map(a => [
-        a.arete, a.nombre, a.ultimoPeso, a.fechaUltimo, a.estado,
+        a.arete, a.nombre, a.ultimoPeso, a.fechaUltimo, a.estado ?? '',
       ]),
     }]);
     doc.save('reporte-salud.pdf');
@@ -711,7 +711,7 @@ const descargarPDFCompleto = async () => {
       columnas: ['Arete', 'Nombre', 'Último peso', 'Fecha', 'Estado'],
       widths:   [35, 50, 35, 32, 28],
       filas: datosSalud.value.map(a => [
-        a.arete, a.nombre, a.ultimoPeso, a.fechaUltimo, a.estado,
+        a.arete, a.nombre, a.ultimoPeso, a.fechaUltimo, a.estado ?? '',
       ]),
     },
     {
@@ -730,7 +730,7 @@ const descargarPDFCompleto = async () => {
   try {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const nuevo = await crearReporte({ tipo: 'PDF General', fecha: new Date().toISOString().slice(0, 10), user_id: user.id ?? 1 });
-    reportes.value.unshift(nuevo);
+    reportes.value.unshift(nuevo.datos);
   } catch { /* silencioso */ }
 
   pdfMsg.value = '¡Reporte completo descargado!';
