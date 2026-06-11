@@ -8,235 +8,95 @@
           <div class="logo-dot">🐄</div>
           <span class="logo-txt">BovWeight CR</span>
         </div>
-
-        <button class="icon-btn" @click="goTo('perfil')">
-          ⚙
-        </button>
+        <button class="icon-btn" @click="goTo('perfil')">⚙</button>
       </div>
 
       <!-- ── Hero ── -->
       <div class="hero">
         <div class="hero-row">
-
           <div>
             <div class="greet-sm">{{ saludoHora }},</div>
             <div class="greet-name">{{ userName }} 👋</div>
           </div>
+          <div class="avatar-circle" @click="goTo('perfil')">{{ userInitials }}</div>
         </div>
-
         <div class="hero-metric">
-          <div class="hm-label">
-            Peso promedio del hato
-          </div>
-
+          <div class="hm-label">Peso promedio del hato</div>
           <div class="hm-value">
             {{ pesoPromedio > 0 ? pesoPromedio.toFixed(0) : '—' }}
             <span class="hm-unit">kg</span>
           </div>
-
-          <div
-            class="hm-sub"
-            v-if="pesoPromedio > 0"
-          >
-            Basado en últimas mediciones
-          </div>
+          <div class="hm-sub" v-if="pesoPromedio > 0">Basado en últimas mediciones</div>
         </div>
       </div>
 
       <!-- ── Floating stats ── -->
       <div class="float-stats">
-
         <div class="fs-card">
-          <div
-            class="fs-ico"
-            style="background:#EEF9F2;color:#2D7A4A"
-          >
-            🐄
-          </div>
-
-          <div class="fs-val">
-            {{ animales.length }}
-          </div>
-
-          <div class="fs-lbl">
-            Animales
-          </div>
+          <div class="fs-ico" style="background:#EEF9F2;color:#2D7A4A">🐄</div>
+          <div class="fs-val">{{ animales.length }}</div>
+          <div class="fs-lbl">Animales</div>
         </div>
-
         <div class="fs-card">
-          <div
-            class="fs-ico"
-            style="background:#FEF3C7;color:#92400E"
-          >
-            ⚖️
-          </div>
-
-          <div class="fs-val">
-            {{ pesajesHoy }}
-          </div>
-
-          <div class="fs-lbl">
-            Pesados hoy
-          </div>
+          <div class="fs-ico" style="background:#FEF3C7;color:#92400E">⚖️</div>
+          <div class="fs-val">{{ pesajesHoy }}</div>
+          <div class="fs-lbl">Pesados hoy</div>
         </div>
-
         <div class="fs-card">
-          <div
-            class="fs-ico"
-            style="background:#DBEAFE;color:#1D4ED8"
-          >
-            📈
-          </div>
-
-          <div class="fs-val">
-            {{ fincas.length }}
-          </div>
-
-          <div class="fs-lbl">
-            Fincas
-          </div>
+          <div class="fs-ico" style="background:#DBEAFE;color:#1D4ED8">📈</div>
+          <div class="fs-val">{{ fincas.length }}</div>
+          <div class="fs-lbl">Fincas</div>
         </div>
       </div>
 
       <!-- ── Loading / Error ── -->
-      <div
-        v-if="loading"
-        class="status-box status-loading"
-      >
-        Cargando datos…
-      </div>
-
-      <div
-        v-else-if="error"
-        class="status-box status-error"
-      >
-        {{ error }}
-      </div>
+      <div v-if="loading" class="status-box status-loading">Cargando datos…</div>
+      <div v-else-if="error" class="status-box status-error">{{ error }}</div>
 
       <!-- ── Body ── -->
       <div class="body-pad">
 
         <!-- Quick actions -->
-        <div class="sec-title">
-          Acciones rápidas
-        </div>
+        <div class="sec-title">Acciones rápidas</div>
 
-        <!-- IA -->
-        <div
-          class="ia-banner"
-          @click="goTo('pesaje-vivo')"
-        >
+        <!-- AI Live Weighing banner -->
+        <div class="ia-banner" @click="goTo('pesaje-vivo')">
           <div class="ia-banner-left">
-
-            <div class="ia-ico">
-              🤖
-            </div>
-
+            <div class="ia-ico">🤖</div>
             <div>
-              <div class="ia-title">
-                Pesaje con IA
-              </div>
-
-              <div class="ia-sub">
-                Estimación inteligente desde la cámara
-              </div>
+              <div class="ia-title">Pesaje con IA</div>
+              <div class="ia-sub">Estimación inteligente desde la cámara</div>
             </div>
           </div>
-
           <span class="ia-chev">›</span>
         </div>
 
-        <!-- Quick buttons -->
         <div class="qa-grid">
-
-          <button
-            class="qa-btn"
-            @click="goTo('pesajes')"
-          >
-            <div
-              class="qa-ico"
-              style="background:#EEF9F2;color:#2D7A4A"
-            >
-              ⚖️
-            </div>
-
-            <div class="qa-lbl">
-              Registrar peso
-            </div>
+          <button class="qa-btn" @click="goTo('pesajes')">
+            <div class="qa-ico" style="background:#EEF9F2;color:#2D7A4A">⚖️</div>
+            <div class="qa-lbl">Registrar peso</div>
           </button>
-
-          <button
-            class="qa-btn"
-            @click="goTo('animales')"
-          >
-            <div
-              class="qa-ico"
-              style="background:#DBEAFE;color:#1D4ED8"
-            >
-              🐄
-            </div>
-
-            <div class="qa-lbl">
-              Ver animales
-            </div>
+          <button class="qa-btn" @click="goTo('animales')">
+            <div class="qa-ico" style="background:#DBEAFE;color:#1D4ED8">🐄</div>
+            <div class="qa-lbl">Ver animales</div>
           </button>
-
-          <button
-            class="qa-btn"
-            @click="goTo('reportes')"
-          >
-            <div
-              class="qa-ico"
-              style="background:#FEF3C7;color:#92400E"
-            >
-              📊
-            </div>
-
-            <div class="qa-lbl">
-              Reportes
-            </div>
+          <button class="qa-btn" @click="goTo('reportes')">
+            <div class="qa-ico" style="background:#FEF3C7;color:#92400E">📊</div>
+            <div class="qa-lbl">Reportes</div>
           </button>
-
-          <button
-            class="qa-btn"
-            @click="goTo('finca')"
-          >
-            <div
-              class="qa-ico"
-              style="background:#F3E8FF;color:#7C3AED"
-            >
-              🏡
-            </div>
-
-            <div class="qa-lbl">
-              Mi finca
-            </div>
+          <button class="qa-btn" @click="goTo('finca')">
+            <div class="qa-ico" style="background:#F3E8FF;color:#7C3AED">🏡</div>
+            <div class="qa-lbl">Mi finca</div>
           </button>
-
         </div>
 
-        <!-- Últimos pesajes -->
+        <!-- Recent pesajes -->
         <div class="sec-row">
-
-          <div
-            class="sec-title"
-            style="margin-bottom:0"
-          >
-            Últimas mediciones
-          </div>
-
-          <button
-            class="link-btn"
-            @click="goTo('animales')"
-          >
-            Ver todo
-          </button>
+          <div class="sec-title" style="margin-bottom:0">Últimas mediciones</div>
+          <button class="link-btn" @click="goTo('animales')">Ver todo</button>
         </div>
 
-        <div
-          v-if="latestPesajes.length === 0 && !loading"
-          class="empty-state"
-        >
+        <div v-if="latestPesajes.length === 0 && !loading" class="empty-state">
           No hay pesajes registrados aún.
         </div>
 
@@ -246,74 +106,35 @@
           class="anim-row"
           @click="goTo('pesajes')"
         >
-
-          <div class="anim-emo">
-            🐄
-          </div>
-
+          <div class="anim-emo">🐄</div>
           <div class="anim-info">
-
-            <div class="anim-name">
-              {{ item.animal }}
-            </div>
-
-            <div class="anim-meta">
-              {{ item.date }}
-            </div>
-
+            <div class="anim-name">{{ item.animal }}</div>
+            <div class="anim-meta">{{ item.date }}</div>
           </div>
-
           <div class="anim-right">
-
-            <div class="anim-w">
-              {{ item.weight }} kg
-            </div>
-
+            <div class="anim-w">{{ item.weight }} kg</div>
           </div>
-
         </div>
 
       </div>
-
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-import {
-  ref,
-  computed,
-  onMounted
-} from 'vue';
-
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { IonPage, IonContent } from '@ionic/vue';
+import { getAnimales, getPesajes, getFincas, pesoNumerico, formatFecha, AnimalDto, PesajeDto, FincaDto } from '@/services/api';
 
-import {
-  IonPage,
-  IonContent
-} from '@ionic/vue';
-
-import {
-  getAnimales,
-  getPesajes,
-  getFincas,
-  pesoNumerico,
-  formatFecha,
-  AnimalDto,
-  PesajeDto,
-  FincaDto
-} from '@/services/api';
-
-const router = useRouter();
-
+const router   = useRouter();
 const userName = ref('Usuario');
 
 const animales = ref<AnimalDto[]>([]);
-const pesajes = ref<PesajeDto[]>([]);
-const fincas = ref<FincaDto[]>([]);
-
-const loading = ref(true);
-const error = ref('');
+const pesajes  = ref<PesajeDto[]>([]);
+const fincas   = ref<FincaDto[]>([]);
+const loading  = ref(true);
+const error    = ref('');
 
 // ── Saludo según hora del día ───────────────────────────────────────────────
 const saludoHora = computed(() => {
@@ -328,60 +149,31 @@ const userInitials = computed(() =>
 );
 
 const pesoPromedio = computed(() => {
-
-  if (!pesajes.value.length) {
-    return 0;
-  }
-
-  const total = pesajes.value.reduce(
-    (s, p) => s + pesoNumerico(p),
-    0
-  );
-
+  if (!pesajes.value.length) return 0;
+  const total = pesajes.value.reduce((s, p) => s + pesoNumerico(p), 0);
   return total / pesajes.value.length;
 });
 
 const pesajesHoy = computed(() => {
-
-  const hoy = new Date()
-    .toISOString()
-    .slice(0, 10);
-
-  return pesajes.value.filter(
-    p => p.fecha?.slice(0, 10) === hoy
-  ).length;
+  const hoy = new Date().toISOString().slice(0, 10);
+  return pesajes.value.filter(p => p.fecha?.slice(0, 10) === hoy).length;
 });
 
-const latestPesajes = computed(() => {
-
-  return [...pesajes.value]
-
-    .sort((a, b) =>
-      new Date(b.fecha || '').getTime() -
-      new Date(a.fecha || '').getTime()
-    )
-
+const latestPesajes = computed(() =>
+  [...pesajes.value]
+    .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
     .slice(0, 4)
-
     .map(p => ({
       id: p.id,
-
-      animal:
-        p.animal?.nombre ||
-        `Arete ${p.animal?.numero_arete || p.animal_id}`,
-
+      animal: p.animal?.nombre ?? `Arete ${p.animal?.numero_arete ?? p.animal_id}`,
       weight: pesoNumerico(p).toFixed(0),
+      date: formatFecha(p.fecha),
+    }))
+);
 
-      date: formatFecha(p.fecha)
-    }));
-});
-
-const goTo = (path: string) => {
-  router.push(`/tabs/${path}`);
-};
+const goTo = (path: string) => router.push(`/tabs/${path}`);
 
 onMounted(async () => {
-
   const raw = localStorage.getItem('user');
 
   if (!raw) {
@@ -402,44 +194,22 @@ onMounted(async () => {
   userName.value = usuario.name || usuario.email?.split('@')[0] || 'Usuario';
 
   try {
-
-    if (raw) {
-
-      const user = JSON.parse(raw);
-
-      userName.value = user.name || 'Usuario';
-    }
-
-  } catch {
-
-    localStorage.removeItem('user');
-  }
-
-  try {
-
     const [aData, pData, fData] = await Promise.all([
       getAnimales(),
       getPesajes(),
-      getFincas()
+      getFincas(),
     ]);
-
-    animales.value = aData.datos || [];
-    pesajes.value = pData.datos || [];
-    fincas.value = fData.datos || [];
-
+    animales.value = aData;
+    pesajes.value  = pData.datos || [];
+    fincas.value   = fData;
   } catch (e) {
-
-    console.error(e);
-
-    error.value =
-      'No se pudo conectar con el servidor. Verifica que el backend esté activo.';
-
+    error.value = 'No se pudo conectar con el servidor. Verifica que el backend esté activo.';
   } finally {
-
     loading.value = false;
   }
 });
 </script>
+
 <style scoped>
 .dash-content { --background: var(--bov-bg, #F2F5F3); }
 
