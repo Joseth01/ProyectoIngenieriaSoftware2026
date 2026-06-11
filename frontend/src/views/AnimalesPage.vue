@@ -90,62 +90,50 @@
 
             <div class="info">
 
-              <p class="arete">
-                #{{ animal.numero_arete }}
-              </p>
-
-              <h2 class="name">
-                {{ animal.nombre || 'Sin nombre' }}
-              </h2>
-
-              <p class="raza">
-                {{ animal.raza?.nombre || 'Sin raza' }}
-              </p>
-
+            <div class="sec-title" style="margin-bottom:10px">Historial de pesajes</div>
+            <div v-if="loadingHistorial" class="status-box status-loading">Cargando historial…</div>
+            <div v-else-if="historialAnimal.length === 0" class="empty-state">Sin pesajes registrados.</div>
+            <div v-else class="hist-list card">
+              <div v-for="(p, i) in historialAnimal" :key="p.id" class="hist-row">
+                <div class="hist-dot" :class="{ 'hist-dot-first': i === 0 }"></div>
+                <div class="hist-date">{{ formatFecha(p.fecha) }} · {{ p.fuente?.nombre ?? 'Manual' }}</div>
+                <div class="hist-w">{{ pesoNumerico(p).toFixed(0) }} kg</div>
+                <div class="hist-d" :class="i < historialAnimal.length-1 ? diffClass(p, historialAnimal[i+1]) : ''">
+                  {{ i < historialAnimal.length-1 ? diff(p, historialAnimal[i+1]) : '' }}
+                </div>
+              </div>
             </div>
 
-            <div
-              class="estado"
-              :class="animal.estado"
-            >
-              {{ animal.estado }}
-            </div>
-
+            <button class="btn-primary" @click="registrarPeso">⚖️ Registrar nuevo pesaje</button>
           </div>
-
-          <div class="card-bottom">
-
-            <div class="metric">
-              <span class="metric-label">
-                Finca
-              </span>
-
-              <span class="metric-value">
-                {{ animal.finca?.nombre || '---' }}
-              </span>
-            </div>
-
-            <div class="metric">
-              <span class="metric-label">
-                Edad
-              </span>
-
-              <span class="metric-value">
-                {{ calcularEdad(animal.fecha_nacimiento) }}
-              </span>
-            </div>
-
-          </div>
-
-        </div>
-
-      </div>
+        </ion-content>
+      </ion-modal>
 
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
+import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { IonPage, IonContent, IonModal } from '@ionic/vue';
+import { getAnimales, getHistorialAnimal, pesoNumerico, formatFecha, AnimalDto, PesajeDto } from '@/services/api';
+
+const router           = useRouter();
+const animales         = ref<AnimalDto[]>([]);
+const loading          = ref(true);
+const error            = ref('');
+const busqueda         = ref('');
+const filtroActivo     = ref('todos');
+const animalSel        = ref<AnimalDto | null>(null);
+const historialAnimal  = ref<PesajeDto[]>([]);
+const loadingHistorial = ref(false);
+
+const filtros = [
+  { key: 'todos',  label: 'Todos' },
+  { key: 'activo', label: 'Activos' },
+  { key: 'otro',   label: 'Inactivos' },
+];
 
 import {
   ref,
@@ -153,15 +141,19 @@ import {
   onMounted
 } from 'vue';
 
-import {
-  IonPage,
-  IonContent
-} from '@ionic/vue';
+function estadoTag(a: AnimalDto) {
+  if (a.estado === 'activo') return { cls: 'tag-g', txt: '✓ Activo' };
+  return { cls: 'tag-r', txt: '✗ Inactivo' };
+}
 
-import {
-  getAnimales,
-  AnimalDto
-} from '@/services/api';
+function ultimoPeso(a: AnimalDto): string {
+  const pesajes = a.pesajes;
+  if (!pesajes || pesajes.length === 0) return '— kg';
+  const ultimo = [...pesajes].sort(
+    (x, y) => new Date(y.fecha).getTime() - new Date(x.fecha).getTime()
+  )[0];
+  return `${pesoNumerico(ultimo).toFixed(0)} kg`;
+}
 
 const animales = ref<AnimalDto[]>([]);
 
@@ -316,116 +308,27 @@ onMounted(() => {
   color: white;
 }
 
-.status {
-  padding: 16px;
-  border-radius: 14px;
-  margin-bottom: 16px;
-  text-align: center;
-  font-weight: 600;
+.hist-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0; border-bottom: 1px solid #F3F4F6;
 }
+.hist-row:last-child { border-bottom: none; }
+.hist-dot { width: 9px; height: 9px; border-radius: 50%; background: #74C69D; flex-shrink: 0; }
+.hist-dot-first { background: #1E5631; width: 11px; height: 11px; }
+.hist-date { font-size: .6875rem; color: #6B7280; flex: 1; }
+.hist-w    { font-size: .8125rem; font-weight: 700; color: #111827; }
+.hist-d    { font-size: .6875rem; font-weight: 600; width: 48px; text-align: right; }
+.diff-up { color: #2D7A4A; }
+.diff-dn { color: #EF4444; }
 
-.loading {
-  background: #e5f3ea;
-  color: #1c5c38;
+.btn-primary {
+  width: 100%; padding: 15px;
+  background: linear-gradient(135deg, #1E5631, #3A9E61);
+  color: #fff; font-size: .9375rem; font-weight: 700;
+  border: none; border-radius: 14px; cursor: pointer;
+  box-shadow: 0 4px 14px rgba(30,86,49,.3);
+  font-family: inherit; margin-top: 4px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
 }
-
-.error {
-  background: #fee2e2;
-  color: #b91c1c;
-}
-
-.empty {
-  background: white;
-  color: #6b7280;
-}
-
-.animal-card {
-  background: white;
-  border-radius: 18px;
-  padding: 16px;
-  margin-bottom: 14px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-}
-
-.card-top {
-  display: flex;
-  align-items: center;
-}
-
-.avatar {
-  width: 60px;
-  height: 60px;
-  border-radius: 14px;
-  background: #e6f4ea;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.8rem;
-}
-
-.info {
-  flex: 1;
-  margin-left: 14px;
-}
-
-.arete {
-  margin: 0;
-  font-size: 0.8rem;
-  color: #6b7280;
-}
-
-.name {
-  margin: 2px 0;
-  font-size: 1rem;
-  font-weight: 800;
-  color: #111827;
-}
-
-.raza {
-  margin: 0;
-  font-size: 0.85rem;
-  color: #4b5563;
-}
-
-.estado {
-  padding: 6px 12px;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
-.estado.activo {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.estado.inactivo {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.card-bottom {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid #f3f4f6;
-}
-
-.metric {
-  display: flex;
-  flex-direction: column;
-}
-
-.metric-label {
-  font-size: 0.7rem;
-  color: #6b7280;
-}
-
-.metric-value {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: #111827;
-}
-
+.btn-primary:hover { opacity: .92; }
 </style>

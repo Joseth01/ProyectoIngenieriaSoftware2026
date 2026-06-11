@@ -210,22 +210,41 @@ class PesajeController extends Controller
     }
 
     public function estimarPeso(Request $request): JsonResponse
-{
-    $datos = $request->validate([
-        'imagen' => 'required|image|max:10240',
-        'animal_id' => 'required|exists:animales,id',
-        'fecha' => 'nullable|date',
-        'fuente_id' => 'nullable|exists:fuentes_pesaje,id',
-    ]);
+    {
+        // El microservicio en Render puede tardar hasta 60 s en despertar (free tier).
+        // Aumentamos el límite de ejecución solo para este endpoint.
+        set_time_limit(120);
 
-    try {
-        $imagen = $request->file('imagen');
+        $request->validate([
+            'imagen'      => 'required|image|max:10240',
+            'raza'        => 'nullable|string|max:50',
+            'edad_meses'  => 'nullable|integer|min:0',
+        ]);
 
-        if (!$imagen || !$imagen->isValid()) {
+        try {
+            $rutaRelativa = $request->file('imagen')->store('pesajes');
+            $raza         = $request->input('raza', 'brahman');
+            $edadMeses    = (int) $request->input('edad_meses', 0);
+
+            $resultado = $this->servicioIA->analizarImagen(
+                $rutaRelativa,
+                $raza,
+                $edadMeses
+            );
+
+            return ApiResponse::success('Peso estimado correctamente', $resultado);
+
+        } catch (\Throwable $error) {
+            // Distinguir errores de validación de imagen (422) de errores del servidor (500)
+            $esErrorImagen = str_contains($error->getMessage(), 'bovino')
+                          || str_contains($error->getMessage(), 'imagen')
+                          || str_contains($error->getMessage(), 'IA')
+                          || str_contains($error->getMessage(), 'animal');
+
             return ApiResponse::error(
                 'No se recibió una imagen válida.',
                 [],
-                422
+                $esErrorImagen ? 422 : 500
             );
         }
 
