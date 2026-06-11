@@ -18,6 +18,7 @@ Response 422:
 
 import io
 import os
+import urllib.request
 
 import numpy as np
 import onnxruntime as ort
@@ -26,30 +27,53 @@ from PIL import Image
 
 app = Flask(__name__)
 
-MODEL_PATH    = os.environ.get("MODEL_PATH", "yolov8n.onnx")
-COCO_COW_CLS  = 19
-MIN_CONF      = 0.40
-INPUT_SIZE    = 640
+MODEL_PATH = os.environ.get("MODEL_PATH", "yolov8n.onnx")
+MODEL_URL  = "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n.onnx"
+COCO_COW_CLS = 19
+MIN_CONF     = 0.40
+INPUT_SIZE   = 640
 
 _session = None
+
+
+def ensure_model() -> None:
+    """Descarga el modelo ONNX si no existe localmente."""
+    if not os.path.exists(MODEL_PATH):
+        print(f"[BovWeight] Modelo no encontrado en '{MODEL_PATH}'. Descargando...", flush=True)
+        try:
+            urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
+            print(f"[BovWeight] Modelo descargado correctamente: {MODEL_PATH}", flush=True)
+        except Exception as exc:
+            print(f"[BovWeight] ERROR descargando modelo: {exc}", flush=True)
+            raise RuntimeError(f"No se pudo descargar el modelo ONNX: {exc}") from exc
 
 
 def get_session() -> ort.InferenceSession:
     global _session
     if _session is None:
+        ensure_model()
+        print(f"[BovWeight] Cargando sesión ONNX desde '{MODEL_PATH}'...", flush=True)
         _session = ort.InferenceSession(
             MODEL_PATH,
             providers=["CPUExecutionProvider"]
         )
+        print("[BovWeight] Sesión ONNX lista.", flush=True)
     return _session
+
+
+# Pre-cargar el modelo al iniciar el worker para detectar errores temprano
+try:
+    get_session()
+except Exception as _startup_err:
+    print(f"[BovWeight] ADVERTENCIA: no se pudo pre-cargar el modelo: {_startup_err}", flush=True)
 
 
 def preprocess(img: Image.Image) -> np.ndarray:
     """Redimensiona y normaliza la imagen para YOLOv8."""
-    img_rgb    = img.convert("RGB").resize((INPUT_SIZE, INPUT_SIZE))
-    arr        = np.array(img_rgb, dtype=np.float32) / 255.0   # (H,W,3)
-    arr        = arr.transpose(2, 0, 1)                         # (3,H,W)
-    return arr[np.newaxis, ...]                                  # (1,3,H,W)
+    img_rgb = img.convert("RGB").resize((INPUT_SIZE, INPUT_SIZE))
+    arr     = np.array(img_rgb, dtype=np.float32) / 255.0   # (H,W,3)
+    arr     = arr.transpose(2, 0, 1)                         # (3,H,W)
+    return arr[np.newaxis, ...]                               # (1,3,H,W)
 
 
 def iou(a: dict, b: dict) -> float:
@@ -61,7 +85,7 @@ def iou(a: dict, b: dict) -> float:
     inter = max(0, ix2 - ix1) * max(0, iy2 - iy1)
     area_a = a["w"] * a["h"]
     area_b = b["w"] * b["h"]
-    union = area_a + area_b - inter
+    union  = area_a + area_b - inter
     return inter / union if union > 0 else 0.0
 
 
@@ -82,9 +106,9 @@ def postprocess(output: np.ndarray, orig_w: int, orig_h: int) -> list:
       - filas 4-83: scores por clase COCO
     Aplica NMS para eliminar detecciones redundantes del mismo animal.
     """
-    preds  = output[0]                  # (84, 8400)
-    boxes  = preds[:4, :].T             # (8400, 4)
-    scores = preds[4:, :].T             # (8400, 80)
+    preds  = output[0]           # (84, 8400)
+    boxes  = preds[:4, :].T      # (8400, 4)
+    scores = preds[4:, :].T      # (8400, 80)
 
     sx = orig_w / INPUT_SIZE
     sy = orig_h / INPUT_SIZE
@@ -106,7 +130,7 @@ def postprocess(output: np.ndarray, orig_w: int, orig_h: int) -> list:
         detections.append({
             "conf": conf,
             "x1": x1, "y1": y1, "x2": x2, "y2": y2,
-            "w": x2 - x1, "h": y2 - y1,
+            "w":  x2 - x1, "h": y2 - y1,
         })
 
     return nms(detections)
@@ -139,11 +163,11 @@ def estimar_peso(bbox_w, bbox_h, img_w, img_h, raza, edad_meses) -> dict:
     factor_cob    = 0.60 + coverage * 1.35
     factor_aspecto = 0.92 if aspect < 1.2 else 1.0
 
-    peso    = peso_base * factor_edad * factor_cob * factor_aspecto
-    peso    = max(80.0, min(750.0, peso))
+    peso = peso_base * factor_edad * factor_cob * factor_aspecto
+    peso = max(80.0, min(750.0, peso))
 
-    alzada  = 90 + (bbox_h / img_h) * 160
-    alzada  = max(90.0, min(170.0, alzada))
+    alzada = 90 + (bbox_h / img_h) * 160
+    alzada = max(90.0, min(170.0, alzada))
 
     cc = max(1.0, min(5.0, round(2.0 + coverage * 5.0, 1)))
 
@@ -176,7 +200,8 @@ def detectar():
         name    = session.get_inputs()[0].name
         output  = session.run(None, {name: inp})
         vacas   = postprocess(output[0], img_w, img_h)
-    except Exception as e:
+    except BaseException as e:
+        # BaseException captura también errores de bajo nivel (ej. SystemError de C extensions)
         return jsonify({"error": f"Error en la detección: {e}"}), 500
 
     if len(vacas) == 0:
@@ -215,7 +240,12 @@ def detectar():
 
 @app.route("/health", methods=["GET"])
 def health():
-    return jsonify({"status": "ok", "modelo": MODEL_PATH}), 200
+    modelo_ok = os.path.exists(MODEL_PATH)
+    return jsonify({
+        "status": "ok" if modelo_ok else "sin_modelo",
+        "modelo": MODEL_PATH,
+        "modelo_existe": modelo_ok,
+    }), 200
 
 
 if __name__ == "__main__":
