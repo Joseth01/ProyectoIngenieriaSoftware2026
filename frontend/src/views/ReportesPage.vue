@@ -339,11 +339,6 @@ const pdfMsg        = ref('');
 const pdfOk         = ref(false);
 const reporteActivo = ref<string | null>(null);
 
-const loading = ref(true);
-
-const pdfMsg = ref('');
-const pdfOk = ref(false);
-
 const MESES = [
   'Ene',
   'Feb',
@@ -514,7 +509,7 @@ const seleccionarReporte = async (tipo: string) => {
   try {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const nuevo = await crearReporte({ tipo, fecha: new Date().toISOString().slice(0, 10), user_id: user.id ?? 1 });
-    reportes.value.unshift(nuevo);
+    reportes.value.unshift(nuevo.datos);
   } catch { /* silencioso */ }
 };
 
@@ -684,7 +679,7 @@ const descargarPDFReporte = async (tipo: string) => {
   try {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const nuevo = await crearReporte({ tipo, fecha: new Date().toISOString().slice(0, 10), user_id: user.id ?? 1 });
-    reportes.value.unshift(nuevo);
+    reportes.value.unshift(nuevo.datos);
   } catch { /* silencioso */ }
 };
 
@@ -751,8 +746,8 @@ const recargar = async () => {
   try {
     const [pData, aData, rData] = await Promise.all([getPesajes(), getAnimales(), getReportes()]);
     pesajes.value   = pData.datos || [];
-    animales.value  = aData;
-    reportes.value  = rData;
+    animales.value  = aData.datos || [];
+    reportes.value  = rData.datos || [];
   } catch { /* sin datos */ }
   finally { loading.value = false; }
 };
