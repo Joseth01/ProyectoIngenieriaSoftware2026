@@ -18,7 +18,7 @@
                 <div class="drawer-email">{{ userEmail }}</div>
               </div>
             </div>
-            <span class="premium-badge">⭐ PREMIUM</span>
+            <span class="rol-badge" :class="`rol-${userRol}`">{{ rolLabel }}</span>
           </div>
 
           <!-- Nav items -->
@@ -150,6 +150,7 @@ const route      = useRoute();
 const drawerOpen = ref(false);
 const userName   = ref('Usuario');
 const userEmail  = ref('');
+const userRol    = ref<'ganadero' | 'veterinario'>('ganadero');
 
 const currentRoute = computed(() => route.path);
 const userInitials = computed(() => {
@@ -160,6 +161,10 @@ const userInitials = computed(() => {
     .join('')
     .toUpperCase() || 'U';
 });
+
+const rolLabel = computed(() =>
+  userRol.value === 'veterinario' ? '🩺 Veterinario' : '🐄 Ganadero'
+);
 
 const navTo = (path: string) => {
   router.push(path);
@@ -178,6 +183,7 @@ onMounted(() => {
   const u = JSON.parse(raw);
   userName.value  = u.name  || 'Usuario';
   userEmail.value = u.email || '';
+  userRol.value   = u.rol   || 'ganadero';
 });
 </script>
 
@@ -257,17 +263,26 @@ onMounted(() => {
 .drawer-name  { font-size: .9375rem; font-weight: 800; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .drawer-email { font-size: .6875rem; color: #6B7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.premium-badge {
+.rol-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 10px;
+  padding: 4px 12px;
   border-radius: 9999px;
-  background: linear-gradient(90deg, #FEF3C7, #FDE68A);
-  border: 1px solid #F59E0B;
   font-size: .6875rem;
   font-weight: 800;
-  color: #92400E;
+}
+
+.rol-ganadero {
+  background: linear-gradient(90deg, #D8F3DC, #B7E5CC);
+  border: 1px solid #52B788;
+  color: #1A3D28;
+}
+
+.rol-veterinario {
+  background: linear-gradient(90deg, #DBEAFE, #BFDBFE);
+  border: 1px solid #3B82F6;
+  color: #1E3A8A;
 }
 
 /* Nav items */

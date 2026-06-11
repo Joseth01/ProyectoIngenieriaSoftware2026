@@ -27,6 +27,15 @@ export interface RegistroDto {
   rol?: string;
 }
 
+export type RolUsuario = 'ganadero' | 'veterinario';
+
+export interface UsuarioDto {
+  id: number;
+  name: string;
+  email: string;
+  rol: RolUsuario;
+}
+
 export interface RazaDto {
   id: number;
   nombre: string;
@@ -55,24 +64,14 @@ export interface FincaDto {
 export interface AnimalDto {
   id: number;
   numero_arete: string;
-  nombre: string;
-  raza_id: number;
-  finca_id: number;
-  fecha_nacimiento: string;
-  estado?: string;
-  created_at?: string;
-  updated_at?: string;
-  raza?: RazaDto | null;
-  finca?: FincaDto | null;
+  nombre: string | null;
+  raza_id: number | null;
+  raza?: RazaDto;
+  fecha_nacimiento: string | null;
+  estado: string;
+  finca_id: number | null;
+  finca?: FincaDto;
   pesajes?: PesajeDto[];
-}
-
-export interface CrearAnimalDto {
-  numero_arete: string;
-  nombre: string;
-  raza_id: number;
-  fecha_nacimiento: string;
-  finca_id: number;
 }
 
 export interface PesajeDto {
@@ -123,20 +122,15 @@ export interface ReporteDto {
   updated_at?: string;
 }
 
-export interface CrearReporteDto {
-  tipo: string;
-  fecha: string;
-  archivo_url?: string | null;
-  user_id?: number;
-  finca_id?: number | null;
+// Backend wraps all responses in { exito, datos, mensaje }
+export interface ApiResponse<T> {
+  exito: boolean;
+  datos: T;
+  mensaje?: string;
 }
 
-export interface PerfilCompletoDto {
-  usuario: UsuarioDto;
-  fincas: FincaDto[];
-  total_animales: number;
-  total_fincas: number;
-}
+// Legacy alias used by DashboardPage and ReportesPage for pesajes
+export interface PesajesResponse extends ApiResponse<PesajeDto[]> {}
 
 export interface EstimacionPesoDto {
   peso_estimado: number;
@@ -146,83 +140,62 @@ export interface EstimacionPesoDto {
   mensaje?: string;
 }
 
-export interface ResultadoPesajeIADto {
-  estimacion: EstimacionPesoDto;
-  pesaje: PesajeDto;
-  imagen: ImagenDto;
-}
+async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    },
+    ...options,
+  });
 
-export interface ConfirmarPesajeIAParams {
-  imagen: Blob;
-  animal_id: number;
-  peso_estimado: number;
-  peso_real?: number | null;
-  fecha: string;
-  fuente_id?: number | null;
-}
+  // Always parse body first — needed for both success and error handling
+  const body = await res.json().catch(() => null);
 
-export function getToken(): string | null {
-  return localStorage.getItem('token');
-}
-
-export function getUsuarioLocal(): UsuarioDto | null {
-  const user = localStorage.getItem('user');
-
-  if (!user) {
-    return null;
+  if (!res.ok) {
+    // 1. Mensaje propio del backend (ApiResponse::error)
+    // 2. Laravel validation errors (422): toma el primer error de campo
+    // 3. Mensaje genérico de Laravel (message)
+    // 4. Fallback con el status code
+    type ErrBody = { mensaje?: string; message?: string; errors?: Record<string, string[]> };
+    const b = body as ErrBody | null;
+    const validationMsg = b?.errors
+      ? Object.values(b.errors).flat()[0]
+      : undefined;
+    const msg = b?.mensaje ?? validationMsg ?? b?.message ?? `Error ${res.status}`;
+    throw new Error(msg);
   }
 
-  try {
-    return JSON.parse(user) as UsuarioDto;
-  } catch {
-    return null;
-  }
+  return body as T;
 }
 
-export function guardarSesion(
-  token: string,
-  user: UsuarioDto
-): void {
-  localStorage.setItem('token', token);
-  localStorage.setItem('user', JSON.stringify(user));
-}
+// ─── Razas ─────────────────────────────────────────────────────────────────
 
-export function limpiarSesion(): void {
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
-}
+export const getRazas = (): Promise<RazaDto[]> =>
+  fetchJson<ApiResponse<RazaDto[]>>('/razas').then(r => r.datos ?? []);
 
-async function fetchJson<T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const token = getToken();
+// ─── Animales ──────────────────────────────────────────────────────────────
 
-  const isFormData =
-    options.body instanceof FormData;
+export const getAnimales = (): Promise<AnimalDto[]> =>
+  fetchJson<ApiResponse<AnimalDto[]>>('/animales').then(r => r.datos ?? []);
 
-  const headers: HeadersInit = {
-    Accept: 'application/json',
-    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(options.headers || {})
-  };
+export const getAnimal = (id: number): Promise<AnimalDto> =>
+  fetchJson<ApiResponse<AnimalDto>>(`/animales/${id}`).then(r => r.datos);
 
-  const response = await fetch(
-    `${API_BASE}${endpoint}`,
-    {
-      ...options,
-      headers
-    }
-  );
+export const buscarPorArete = (arete: string): Promise<AnimalDto> =>
+  fetchJson<ApiResponse<AnimalDto>>(`/animales/arete/${encodeURIComponent(arete)}`).then(r => r.datos);
 
-  let data: any = null;
+// El endpoint devuelve el Animal con su relación pesajes cargada
+export const getHistorialAnimal = (id: number): Promise<PesajeDto[]> =>
+  fetchJson<ApiResponse<AnimalDto>>(`/animales/${id}/historial`)
+    .then(r => r.datos?.pesajes ?? []);
 
-  try {
-    data = await response.json();
-  } catch {
-    data = null;
-  }
+export const crearAnimal = (data: Partial<AnimalDto>): Promise<AnimalDto> =>
+  fetchJson<ApiResponse<AnimalDto>>('/animales', { method: 'POST', body: JSON.stringify(data) }).then(r => r.datos);
+
+export const actualizarAnimal = (id: number, data: Partial<AnimalDto>): Promise<AnimalDto> =>
+  fetchJson<ApiResponse<AnimalDto>>(`/animales/${id}`, { method: 'PUT', body: JSON.stringify(data) }).then(r => r.datos);
 
   if (!response.ok) {
     const mensaje =
@@ -234,293 +207,15 @@ async function fetchJson<T>(
     throw new Error(mensaje);
   }
 
-  return data as T;
-}
+// getPesajes mantiene PesajesResponse para compatibilidad con DashboardPage y ReportesPage
+export const getPesajes = (): Promise<PesajesResponse> =>
+  fetchJson<PesajesResponse>('/pesajes');
 
-/* =========================
-   USUARIOS / AUTENTICACIÓN
-========================= */
+export const getPesaje = (id: number): Promise<PesajeDto> =>
+  fetchJson<ApiResponse<PesajeDto>>(`/pesajes/${id}`).then(r => r.datos);
 
-export const loginUsuario = async (
-  data: LoginDto
-) => {
-  const payload = {
-    email: data.email?.trim(),
-    password: data.password
-  };
-
-  const response =
-    await fetchJson<ApiResponse<{
-      token: string;
-      usuario: UsuarioDto;
-    }>>(
-      '/usuarios/login',
-      {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      }
-    );
-
-  guardarSesion(
-    response.datos.token,
-    response.datos.usuario
-  );
-
-  return response;
-};
-export const registrarUsuario = async (
-  data: RegistroDto
-) => {
-  const response =
-    await fetchJson<ApiResponse<{
-      token: string;
-      usuario: UsuarioDto;
-    }>>(
-      '/usuarios/registro',
-      {
-        method: 'POST',
-        body: JSON.stringify(data)
-      }
-    );
-
-  guardarSesion(
-    response.datos.token,
-    response.datos.usuario
-  );
-
-  return response;
-};
-
-export const getPerfil = () =>
-  fetchJson<ApiResponse<UsuarioDto>>(
-    '/usuarios/perfil'
-  );
-
-export const getPerfilCompleto = () =>
-  fetchJson<ApiResponse<PerfilCompletoDto>>(
-    '/usuarios/perfil-completo'
-  );
-
-export const logoutUsuario = async () => {
-  try {
-    await fetchJson<ApiResponse<null>>(
-      '/usuarios/logout',
-      {
-        method: 'POST'
-      }
-    );
-  } finally {
-    limpiarSesion();
-  }
-};
-
-/* =========================
-   ANIMALES / CATÁLOGOS
-========================= */
-
-export const getAnimales = () =>
-  fetchJson<ApiResponse<AnimalDto[]>>(
-    '/animales'
-  );
-
-export const getRazas = () =>
-  fetchJson<ApiResponse<RazaDto[]>>(
-    '/animales/razas'
-  );
-
-export const getAnimal = (
-  id: number
-) =>
-  fetchJson<ApiResponse<AnimalDto>>(
-    `/animales/${id}`
-  );
-
-export const buscarPorArete = (
-  arete: string
-) =>
-  fetchJson<ApiResponse<AnimalDto>>(
-    `/animales/arete/${encodeURIComponent(arete)}`
-  );
-
-export const buscarAnimalPorArete = buscarPorArete;
-
-export const getHistorialAnimal = (
-  id: number
-) =>
-  fetchJson<ApiResponse<AnimalDto>>(
-    `/animales/${id}/historial`
-  );
-
-export const crearAnimal = (
-  data: CrearAnimalDto
-) =>
-  fetchJson<ApiResponse<AnimalDto>>(
-    '/animales',
-    {
-      method: 'POST',
-      body: JSON.stringify(data)
-    }
-  );
-
-export const crearAnimalRapido = (
-  data: CrearAnimalDto
-) =>
-  crearAnimal(data);
-
-export const actualizarAnimal = (
-  id: number,
-  data: Partial<CrearAnimalDto> & {
-    estado?: string;
-  }
-) =>
-  fetchJson<ApiResponse<AnimalDto>>(
-    `/animales/${id}`,
-    {
-      method: 'PUT',
-      body: JSON.stringify(data)
-    }
-  );
-
-export const eliminarAnimal = (
-  id: number
-) =>
-  fetchJson<ApiResponse<null>>(
-    `/animales/${id}`,
-    {
-      method: 'DELETE'
-    }
-  );
-
-/* =========================
-   PESAJES
-========================= */
-
-export const getPesajes = () =>
-  fetchJson<ApiResponse<PesajeDto[]>>(
-    '/pesajes'
-  );
-
-export const getPesaje = (
-  id: number
-) =>
-  fetchJson<ApiResponse<PesajeDto>>(
-    `/pesajes/${id}`
-  );
-
-export const getPesajesByAnimal = (
-  animalId: number
-) =>
-  fetchJson<ApiResponse<PesajeDto[]>>(
-    `/pesajes/animal/${animalId}`
-  );
-
-export const crearPesaje = (
-  data: CrearPesajeDto
-) =>
-  fetchJson<ApiResponse<PesajeDto>>(
-    '/pesajes',
-    {
-      method: 'POST',
-      body: JSON.stringify(data)
-    }
-  );
-
-export const actualizarPesaje = (
-  id: number,
-  data: Partial<CrearPesajeDto>
-) =>
-  fetchJson<ApiResponse<PesajeDto>>(
-    `/pesajes/${id}`,
-    {
-      method: 'PUT',
-      body: JSON.stringify(data)
-    }
-  );
-
-export const eliminarPesaje = (
-  id: number
-) =>
-  fetchJson<ApiResponse<null>>(
-    `/pesajes/${id}`,
-    {
-      method: 'DELETE'
-    }
-  );
-
-/* =========================
-   IA / ESTIMACIÓN DE PESO
-========================= */
-
-/**
- * Solo analiza la imagen con IA.
- * No guarda el pesaje todavía.
- * El usuario decide luego si guarda el peso estimado o lo ajusta.
- */
-export const estimarPesoPorImagen = (
-  imagen: Blob,
-  animalId: number
-) => {
-  const formData = new FormData();
-
-  formData.append(
-    'imagen',
-    imagen,
-    'animal.jpg'
-  );
-
-  formData.append(
-    'animal_id',
-    String(animalId)
-  );
-
-  return fetchJson<ApiResponse<EstimacionPesoDto>>(
-    '/pesajes/estimar-peso',
-    {
-      method: 'POST',
-      body: formData
-    }
-  );
-};
-/**
- * Guarda el pesaje confirmado por el usuario y guarda la imagen ligada al pesaje.
- * Esta función necesita que en Laravel exista:
- * POST /api/pesajes/confirmar-ia
- */
-export const confirmarPesajeIA = (
-  data: ConfirmarPesajeIAParams
-) => {
-  const formData = new FormData();
-
-  formData.append(
-    'imagen',
-    data.imagen,
-    'animal.jpg'
-  );
-
-  formData.append(
-    'animal_id',
-    String(data.animal_id)
-  );
-
-  formData.append(
-    'peso_estimado',
-    String(data.peso_estimado)
-  );
-
-  if (
-    data.peso_real !== undefined &&
-    data.peso_real !== null
-  ) {
-    formData.append(
-      'peso_real',
-      String(data.peso_real)
-    );
-  }
-
-  formData.append(
-    'fecha',
-    data.fecha
-  );
+export const getPesajesByAnimal = (animalId: number): Promise<PesajeDto[]> =>
+  fetchJson<ApiResponse<PesajeDto[]>>(`/pesajes/animal/${animalId}`).then(r => r.datos ?? []);
 
   if (data.fuente_id) {
     formData.append(
@@ -652,32 +347,20 @@ export function formatFecha(
 
   const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
+export const getFincas = (): Promise<FincaDto[]> =>
+  fetchJson<ApiResponse<FincaDto[]>>('/fincas').then(r => r.datos ?? []);
 
-  return new Intl.DateTimeFormat(
-    'es-CR',
-    {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    }
-  ).format(date);
-}
+export const getFinca = (id: number): Promise<FincaDto> =>
+  fetchJson<ApiResponse<FincaDto>>(`/fincas/${id}`).then(r => r.datos);
 
-export function calcularEdad(
-  fechaNacimiento: string | null | undefined
-): string {
-  if (!fechaNacimiento) {
-    return '---';
-  }
+export const getFincasByUsuario = (userId: number): Promise<FincaDto[]> =>
+  fetchJson<ApiResponse<FincaDto[]>>(`/fincas/usuario/${userId}`).then(r => r.datos ?? []);
 
-  const nacimiento = new Date(fechaNacimiento);
+export const crearFinca = (data: Partial<FincaDto>): Promise<FincaDto> =>
+  fetchJson<ApiResponse<FincaDto>>('/fincas', { method: 'POST', body: JSON.stringify(data) }).then(r => r.datos);
 
-  if (Number.isNaN(nacimiento.getTime())) {
-    return '---';
-  }
+export const actualizarFinca = (id: number, data: Partial<FincaDto>): Promise<FincaDto> =>
+  fetchJson<ApiResponse<FincaDto>>(`/fincas/${id}`, { method: 'PUT', body: JSON.stringify(data) }).then(r => r.datos);
 
   const hoy = new Date();
 
@@ -685,20 +368,39 @@ export function calcularEdad(
     (hoy.getFullYear() - nacimiento.getFullYear()) * 12 +
     (hoy.getMonth() - nacimiento.getMonth());
 
-  if (hoy.getDate() < nacimiento.getDate()) {
-    meses--;
-  }
+export const getReportes = (): Promise<ReporteDto[]> =>
+  fetchJson<ApiResponse<ReporteDto[]>>('/reportes').then(r => r.datos ?? []);
 
-  if (meses < 0) {
-    return '---';
-  }
+export const getReporte = (id: number): Promise<ReporteDto> =>
+  fetchJson<ApiResponse<ReporteDto>>(`/reportes/${id}`).then(r => r.datos);
 
-  if (meses < 12) {
-    return `${meses} mes${meses === 1 ? '' : 'es'}`;
-  }
+export const getReportesByUsuario = (userId: number): Promise<ReporteDto[]> =>
+  fetchJson<ApiResponse<ReporteDto[]>>(`/reportes/usuario/${userId}`).then(r => r.datos ?? []);
 
-  const años =
-    Math.floor(meses / 12);
+export const crearReporte = (data: Partial<ReporteDto>): Promise<ReporteDto> =>
+  fetchJson<ApiResponse<ReporteDto>>('/reportes', { method: 'POST', body: JSON.stringify(data) }).then(r => r.datos);
+
+// ─── Usuarios ──────────────────────────────────────────────────────────────
+
+export const registrarUsuario = (data: {
+  name: string;
+  email: string;
+  password: string;
+  rol: RolUsuario;
+}): Promise<UsuarioDto> =>
+  fetchJson<ApiResponse<UsuarioDto>>('/usuarios/registro', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }).then(r => r.datos);
+
+export const loginUsuario = (data: {
+  email: string;
+  password: string;
+}): Promise<UsuarioDto> =>
+  fetchJson<ApiResponse<UsuarioDto>>('/usuarios/login', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }).then(r => r.datos);
 
   const mesesRestantes =
     meses % 12;
