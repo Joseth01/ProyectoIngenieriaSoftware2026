@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
@@ -9,17 +10,23 @@ class ServicioIA
 {
     private string $urlServicioIA = 'http://127.0.0.1:5000/detectar';
 
-    public function analizarImagen(string $rutaImagen): array
+    public function analizarImagen(UploadedFile $imagen): array
     {
-        if (!file_exists($rutaImagen)) {
-            throw new RuntimeException('La imagen no existe en el servidor.');
+        if (!$imagen->isValid()) {
+            throw new RuntimeException('La imagen no se recibió correctamente.');
         }
 
-        $respuesta = Http::timeout(30)
+        $rutaTemporal = $imagen->getRealPath();
+
+        if (!$rutaTemporal || !file_exists($rutaTemporal)) {
+            throw new RuntimeException('No se pudo leer la imagen temporal recibida.');
+        }
+
+        $respuesta = Http::timeout(60)
             ->attach(
                 'imagen',
-                file_get_contents($rutaImagen),
-                basename($rutaImagen)
+                file_get_contents($rutaTemporal),
+                $imagen->getClientOriginalName() ?: 'animal.jpg'
             )
             ->post($this->urlServicioIA);
 

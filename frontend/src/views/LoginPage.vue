@@ -4,11 +4,9 @@
 
       <div class="splash">
 
-        <!-- decoraciones -->
         <div class="deco deco-1"></div>
         <div class="deco deco-2"></div>
 
-        <!-- logo -->
         <div class="logo-wrap">
 
           <svg viewBox="0 0 50 50" fill="none" class="logo-svg">
@@ -46,7 +44,6 @@
 
         </div>
 
-        <!-- marca -->
         <h1 class="brand">
           Bov<span>Weight</span>
         </h1>
@@ -59,14 +56,12 @@
           Control inteligente de peso para tu ganado bovino
         </p>
 
-        <!-- formulario -->
         <div class="form-card">
 
           <h2 class="form-title">
             Iniciar sesión
           </h2>
 
-          <!-- correo -->
           <div class="field">
 
             <label class="field-label">
@@ -80,10 +75,11 @@
               </span>
 
               <input
-                v-model="email"
+                v-model.trim="email"
                 type="email"
                 class="field-input"
                 placeholder="admin@bovweight.com"
+                autocomplete="email"
                 @keyup.enter="login"
               />
 
@@ -91,7 +87,6 @@
 
           </div>
 
-          <!-- contraseña -->
           <div class="field">
 
             <label class="field-label">
@@ -109,6 +104,7 @@
                 :type="mostrarPassword ? 'text' : 'password'"
                 class="field-input"
                 placeholder="••••••••"
+                autocomplete="current-password"
                 @keyup.enter="login"
               />
 
@@ -124,7 +120,6 @@
 
           </div>
 
-          <!-- mensaje error -->
           <p
             v-if="errorMsg"
             class="error-msg"
@@ -132,7 +127,6 @@
             {{ errorMsg }}
           </p>
 
-          <!-- botón -->
           <button
             class="btn-login"
             :disabled="loading"
@@ -149,19 +143,16 @@
 
           </button>
 
-          <!-- registro -->
           <p class="register-link">
-  ¿No tienes cuenta?
+            ¿No tienes cuenta?
 
-  <span @click="irRegistro">
-    Crear cuenta
-  </span>
-
-</p>
+            <span @click="irRegistro">
+              Crear cuenta
+            </span>
+          </p>
 
         </div>
 
-        <!-- footer -->
         <p class="footer-note">
           BovWeight CR · Sistema ganadero inteligente
         </p>
@@ -174,8 +165,14 @@
 
 <script setup lang="ts">
 
-import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import {
+  ref,
+  onMounted
+} from 'vue';
+
+import {
+  useRouter
+} from 'vue-router';
 
 import {
   IonPage,
@@ -197,11 +194,15 @@ const errorMsg = ref('');
 const mostrarPassword = ref(false);
 
 const login = async () => {
-
   errorMsg.value = '';
 
-  if (!email.value || !password.value) {
+  const correo =
+    email.value.trim();
 
+  const clave =
+    password.value;
+
+  if (!correo || !clave) {
     errorMsg.value =
       'Completa todos los campos.';
 
@@ -211,69 +212,40 @@ const login = async () => {
   loading.value = true;
 
   try {
-
-    const response =
-      await loginUsuario(
-        email.value,
-        password.value
-      );
-
-    const datos =
-      response.datos;
-
-    localStorage.setItem(
-      'token',
-      datos.token
-    );
-
-    localStorage.setItem(
-      'user',
-      JSON.stringify(
-        datos.usuario
-      )
-    );
+    await loginUsuario({
+      email: correo,
+      password: clave
+    });
 
     router.replace(
       '/tabs/dashboard'
     );
 
-  }
-  catch (error: any) {
-
+  } catch (error: any) {
     console.error(error);
 
     errorMsg.value =
       error?.message ??
       'Credenciales incorrectas';
 
-  }
-  finally {
-
+  } finally {
     loading.value = false;
-
   }
-
 };
 
 const irRegistro = () => {
-
   router.push('/registro');
-
 };
 
 onMounted(() => {
-
   const token =
     localStorage.getItem('token');
 
   if (token) {
-
     router.replace(
       '/tabs/dashboard'
     );
-
   }
-
 });
 
 </script>
@@ -285,7 +257,6 @@ onMounted(() => {
 }
 
 .splash {
-
   min-height: 100vh;
 
   background:
@@ -310,10 +281,7 @@ onMounted(() => {
   overflow: hidden;
 }
 
-/* decoraciones */
-
 .deco {
-
   position: absolute;
 
   border-radius: 50%;
@@ -322,7 +290,6 @@ onMounted(() => {
 }
 
 .deco-1 {
-
   width: 280px;
   height: 280px;
 
@@ -331,7 +298,6 @@ onMounted(() => {
 }
 
 .deco-2 {
-
   width: 200px;
   height: 200px;
 
@@ -339,10 +305,7 @@ onMounted(() => {
   left: -60px;
 }
 
-/* logo */
-
 .logo-wrap {
-
   width: 84px;
   height: 84px;
 
@@ -363,15 +326,11 @@ onMounted(() => {
 }
 
 .logo-svg {
-
   width: 50px;
   height: 50px;
 }
 
-/* textos */
-
 .brand {
-
   font-size: 2.8rem;
 
   font-weight: 900;
@@ -382,12 +341,10 @@ onMounted(() => {
 }
 
 .brand span {
-
   color: #74C69D;
 }
 
 .brand-sub {
-
   font-size: .75rem;
 
   letter-spacing: .18em;
@@ -398,7 +355,6 @@ onMounted(() => {
 }
 
 .brand-desc {
-
   font-size: .95rem;
 
   color: rgba(255,255,255,.78);
@@ -410,10 +366,7 @@ onMounted(() => {
   margin-bottom: 34px;
 }
 
-/* card */
-
 .form-card {
-
   width: 100%;
   max-width: 420px;
 
@@ -428,7 +381,6 @@ onMounted(() => {
 }
 
 .form-title {
-
   font-size: 1.9rem;
 
   font-weight: 800;
@@ -438,15 +390,11 @@ onMounted(() => {
   margin-bottom: 22px;
 }
 
-/* campos */
-
 .field {
-
   margin-bottom: 18px;
 }
 
 .field-label {
-
   display: block;
 
   font-size: .9rem;
@@ -459,7 +407,6 @@ onMounted(() => {
 }
 
 .field-input-wrap {
-
   display: flex;
 
   align-items: center;
@@ -478,7 +425,6 @@ onMounted(() => {
 }
 
 .field-input-wrap:focus-within {
-
   border-color: #1E5631;
 
   background: white;
@@ -488,14 +434,10 @@ onMounted(() => {
 }
 
 .field-icon {
-
   font-size: 16px;
 }
 
-/* input */
-
 .field-input {
-
   flex: 1;
 
   border: none;
@@ -512,14 +454,10 @@ onMounted(() => {
 }
 
 .field-input::placeholder {
-
   color: #9CA3AF;
 }
 
-/* mostrar contraseña */
-
 .toggle-password {
-
   border: none;
 
   background: transparent;
@@ -529,10 +467,7 @@ onMounted(() => {
   font-size: 1rem;
 }
 
-/* error */
-
 .error-msg {
-
   background: #FEE2E2;
 
   color: #DC2626;
@@ -546,10 +481,7 @@ onMounted(() => {
   margin-bottom: 14px;
 }
 
-/* botón */
-
 .btn-login {
-
   width: 100%;
 
   padding: 15px;
@@ -580,19 +512,14 @@ onMounted(() => {
 }
 
 .btn-login:hover {
-
   transform: translateY(-1px);
 }
 
 .btn-login:disabled {
-
   opacity: .7;
 }
 
-/* link registro */
-
 .register-link {
-
   margin-top: 18px;
 
   text-align: center;
@@ -603,7 +530,6 @@ onMounted(() => {
 }
 
 .register-link span {
-
   color: #1E5631;
 
   font-weight: 700;
@@ -611,10 +537,7 @@ onMounted(() => {
   cursor: pointer;
 }
 
-/* footer */
-
 .footer-note {
-
   margin-top: 24px;
 
   font-size: .72rem;

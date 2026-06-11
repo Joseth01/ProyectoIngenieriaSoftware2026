@@ -90,7 +90,7 @@
 
           <div class="model-label">
             <span class="model-dot"></span>
-            BovAI · Modelo morfométrico v1.0
+            BovAI · Servicio de estimación
           </div>
         </div>
 
@@ -152,7 +152,7 @@
               <span class="result-title">Estimación de peso</span>
 
               <span class="confidence-badge">
-                {{ confianza }}% confianza
+                {{ textoConfianza }}
               </span>
             </div>
 
@@ -175,12 +175,14 @@
 
               <div class="rm-item">
                 <span class="rm-lbl">Alzada estimada</span>
-                <span class="rm-val">{{ alzada }} cm</span>
+                <span class="rm-val">
+                  {{ alzada !== null ? alzada + ' cm' : '---' }}
+                </span>
               </div>
             </div>
 
             <p class="warning-note">
-              Esta medición es una estimación. Para transacciones formales usa una báscula certificada.
+              Esta medición es una estimación generada por el servicio IA. Antes de guardar puedes confirmar o ajustar el peso.
             </p>
 
           </div>
@@ -196,10 +198,9 @@
           <button
             class="btn-save"
             :disabled="saving"
-            @click="guardar"
+            @click="mostrarConfirmacion = true"
           >
-            <span v-if="saving">Guardando…</span>
-            <span v-else>💾 Guardar pesaje</span>
+            Revisar y guardar
           </button>
 
         </div>
@@ -241,8 +242,8 @@
               <div class="step-num">3</div>
 
               <div>
-                <div class="step-title">Obtén el peso estimado</div>
-                <div class="step-sub">El servicio IA procesa la imagen y calcula el peso</div>
+                <div class="step-title">Confirma el pesaje</div>
+                <div class="step-sub">La IA estima el peso y tú decides si guardar o ajustar</div>
               </div>
             </div>
 
@@ -453,6 +454,105 @@
         </ion-content>
       </ion-modal>
 
+      <!-- MODAL CONFIRMAR PESO IA -->
+      <ion-modal
+        :is-open="mostrarConfirmacion"
+        @didDismiss="cerrarConfirmacion"
+      >
+        <ion-content class="vivo-bg">
+
+          <div class="app-bar">
+            <button class="back-btn" @click="cerrarConfirmacion">✕</button>
+
+            <div class="app-bar-center">
+              <div class="page-title small-title">Confirmar pesaje</div>
+              <div class="page-sub">Revisa la estimación antes de guardar</div>
+            </div>
+
+            <div style="width:34px"></div>
+          </div>
+
+          <div class="body-pad">
+
+            <div class="form-card">
+
+              <div class="confirm-ai-box">
+                <div class="confirm-label">
+                  Peso estimado por IA
+                </div>
+
+                <div class="confirm-weight">
+                  {{ pesoEstimado }} kg
+                </div>
+
+                <div class="confirm-sub">
+                  Este dato fue generado por el servicio de estimación.
+                </div>
+              </div>
+
+              <div class="field-group">
+                <label class="field-label">
+                  Peso a guardar
+                </label>
+
+                <input
+                  v-model.number="pesoManual"
+                  class="field-input"
+                  type="number"
+                  min="1"
+                  step="0.01"
+                />
+
+                <div class="field-help">
+                  Si estás de acuerdo con la IA, deja este valor igual.
+                  Si deseas corregirlo, escribe el peso final.
+                </div>
+              </div>
+
+              <div class="result-metrics confirm-metrics">
+                <div class="rm-item">
+                  <span class="rm-lbl">Confianza</span>
+                  <span class="rm-val">{{ textoConfianza }}</span>
+                </div>
+
+                <div class="rm-item">
+                  <span class="rm-lbl">Condición corporal</span>
+                  <span class="rm-val">{{ cc }}/5</span>
+                </div>
+              </div>
+
+              <p class="warning-note">
+                Al guardar, se registrará el pesaje del animal y se almacenará la imagen asociada al pesaje.
+              </p>
+
+              <div class="form-actions">
+
+                <button
+                  class="btn-retry"
+                  :disabled="saving"
+                  @click="cerrarConfirmacion"
+                >
+                  Revisar
+                </button>
+
+                <button
+                  class="btn-save"
+                  :disabled="saving"
+                  @click="guardar"
+                >
+                  <span v-if="saving">Guardando…</span>
+                  <span v-else>Guardar pesaje</span>
+                </button>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </ion-content>
+      </ion-modal>
+
     </ion-content>
   </ion-page>
 </template>
@@ -488,8 +588,8 @@ import {
   getRazas,
   getPerfilCompleto,
   crearAnimalRapido,
-  crearPesaje,
-  estimarPesoPorImagen
+  estimarPesoPorImagen,
+  confirmarPesajeIA
 } from '@/services/api';
 
 const router = useRouter();
@@ -507,6 +607,7 @@ const animalSel = ref<AnimalDto | null>(null);
 
 const mostrarSelector = ref(false);
 const mostrarCrearAnimal = ref(false);
+const mostrarConfirmacion = ref(false);
 
 const busqueda = ref('');
 
@@ -527,10 +628,12 @@ const imagenBlob = ref<Blob | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 
 const pesoEstimado = ref(0);
+const pesoManual = ref<number | null>(null);
+
 const margen = ref(0);
-const confianza = ref(0);
-const cc = ref('---');
-const alzada = ref(0);
+const confianza = ref<number | null>(null);
+const cc = ref<string>('---');
+const alzada = ref<number | null>(null);
 
 const nuevoAnimal = ref({
   numero_arete: '',
@@ -585,6 +688,14 @@ const textoEstado = computed(() => {
   return 'Toca para estimar el peso';
 });
 
+const textoConfianza = computed(() => {
+  if (confianza.value === null) {
+    return 'Servicio IA';
+  }
+
+  return `${confianza.value}% confianza`;
+});
+
 function nombreAnimal(animal: AnimalDto): string {
   return animal.nombre ||
     `Arete ${animal.numero_arete}`;
@@ -598,24 +709,21 @@ async function cargarDatos() {
   loadingAnimales.value = true;
 
   try {
-    const [
-      animalesResponse,
-      perfilResponse,
-      razasResponse
-    ] = await Promise.all([
-      getAnimales(),
-      getPerfilCompleto(),
-      getRazas()
-    ]);
+    const animalesResponse =
+      await getAnimales();
 
     animales.value =
       animalesResponse.datos || [];
+  } catch (error) {
+    console.error('Error cargando animales:', error);
+  }
+
+  try {
+    const perfilResponse =
+      await getPerfilCompleto();
 
     fincas.value =
       perfilResponse.datos.fincas || [];
-
-    razas.value =
-      razasResponse.datos || [];
 
     if (
       fincas.value.length > 0 &&
@@ -624,6 +732,16 @@ async function cargarDatos() {
       nuevoAnimal.value.finca_id =
         fincas.value[0].id;
     }
+  } catch (error) {
+    console.error('Error cargando fincas:', error);
+  }
+
+  try {
+    const razasResponse =
+      await getRazas();
+
+    razas.value =
+      razasResponse.datos || [];
 
     if (
       razas.value.length > 0 &&
@@ -632,14 +750,8 @@ async function cargarDatos() {
       nuevoAnimal.value.raza_id =
         razas.value[0].id;
     }
-
-  } catch (error: any) {
-    feedbackMsg.value =
-      error?.message ||
-      'No se pudieron cargar los datos iniciales.';
-
-    feedbackOk.value = false;
-
+  } catch (error) {
+    console.error('Error cargando razas:', error);
   } finally {
     loadingAnimales.value = false;
   }
@@ -737,7 +849,6 @@ async function guardarNuevoAnimal() {
     errorCrearAnimal.value =
       error?.message ||
       'No se pudo crear el animal.';
-
   } finally {
     savingAnimal.value = false;
   }
@@ -772,7 +883,7 @@ async function obtenerImagenCapacitor(
 ) {
   const foto =
     await Camera.getPhoto({
-      quality: 85,
+      quality: 95,
       allowEditing: false,
       resultType: CameraResultType.Uri,
       source
@@ -838,25 +949,41 @@ async function analizarImagen() {
 
   estado.value = 'analizando';
   feedbackMsg.value = '';
+  mostrarConfirmacion.value = false;
 
   try {
     const response =
-      await estimarPesoPorImagen(
-        imagenBlob.value
-      );
+  await estimarPesoPorImagen(
+    imagenBlob.value,
+    animalSel.value.id
+  );
 
     const datos =
       response.datos;
 
-    pesoEstimado.value =
-      Math.round(
-        Number(datos.peso_estimado || 0)
+    const pesoServicio =
+      Number(datos.peso_estimado);
+
+    if (
+      !pesoServicio ||
+      Number.isNaN(pesoServicio)
+    ) {
+      throw new Error(
+        'El servicio IA no devolvió un peso estimado válido.'
       );
+    }
+
+    pesoEstimado.value =
+      Math.round(pesoServicio);
+
+    pesoManual.value =
+      Math.round(pesoServicio);
 
     confianza.value =
-      Math.round(
-        Number(datos.confianza ?? 90)
-      );
+      datos.confianza !== undefined &&
+      datos.confianza !== null
+        ? Math.round(Number(datos.confianza))
+        : null;
 
     margen.value =
       Math.max(
@@ -865,14 +992,19 @@ async function analizarImagen() {
       );
 
     cc.value =
-      String(datos.condicion_corporal ?? '---');
+      datos.condicion_corporal !== undefined &&
+      datos.condicion_corporal !== null
+        ? String(datos.condicion_corporal)
+        : '---';
 
     alzada.value =
-      Math.round(
-        Number(datos.alzada_estimada ?? 0)
-      );
+      datos.alzada_estimada !== undefined &&
+      datos.alzada_estimada !== null
+        ? Math.round(Number(datos.alzada_estimada))
+        : null;
 
     estado.value = 'resultado';
+    mostrarConfirmacion.value = true;
 
   } catch (error: any) {
     estado.value = 'idle';
@@ -885,22 +1017,36 @@ async function analizarImagen() {
   }
 }
 
+function cerrarConfirmacion() {
+  mostrarConfirmacion.value = false;
+}
+
 function reiniciar() {
   estado.value = 'idle';
   feedbackMsg.value = '';
   imagenPreview.value = '';
   imagenBlob.value = null;
   pesoEstimado.value = 0;
+  pesoManual.value = null;
   margen.value = 0;
-  confianza.value = 0;
+  confianza.value = null;
   cc.value = '---';
-  alzada.value = 0;
+  alzada.value = null;
+  mostrarConfirmacion.value = false;
 }
 
 async function guardar() {
   if (!animalSel.value) {
     feedbackMsg.value =
       'Selecciona un animal.';
+
+    feedbackOk.value = false;
+    return;
+  }
+
+  if (!imagenBlob.value) {
+    feedbackMsg.value =
+      'No se encontró la imagen a guardar.';
 
     feedbackOk.value = false;
     return;
@@ -914,25 +1060,48 @@ async function guardar() {
     return;
   }
 
+  if (
+    !pesoManual.value ||
+    pesoManual.value <= 0
+  ) {
+    feedbackMsg.value =
+      'Ingresa un peso válido para guardar.';
+
+    feedbackOk.value = false;
+    return;
+  }
+
   saving.value = true;
 
   try {
-    await crearPesaje({
+    const pesoFinal =
+      Number(pesoManual.value);
+
+    const pesoReal =
+      pesoFinal !== pesoEstimado.value
+        ? pesoFinal
+        : null;
+
+    await confirmarPesajeIA({
+      imagen: imagenBlob.value,
       animal_id: animalSel.value.id,
       peso_estimado: pesoEstimado.value,
-      peso_real: null,
+      peso_real: pesoReal,
       fecha: new Date().toISOString().slice(0, 10),
       fuente_id: 1
     });
 
     feedbackMsg.value =
-      '✓ Pesaje guardado exitosamente.';
+      '✓ Pesaje e imagen guardados correctamente.';
 
     feedbackOk.value = true;
+    mostrarConfirmacion.value = false;
+
+    await cargarDatos();
 
     setTimeout(() => {
       reiniciar();
-    }, 1500);
+    }, 1200);
 
   } catch (error: any) {
     feedbackMsg.value =
@@ -940,7 +1109,6 @@ async function guardar() {
       'Error al guardar el pesaje.';
 
     feedbackOk.value = false;
-
   } finally {
     saving.value = false;
   }
@@ -1649,6 +1817,48 @@ onMounted(() => {
 .field-input:focus {
   border-color: #1E5631;
   background: #ffffff;
+}
+
+.field-help {
+  margin-top: 6px;
+  font-size: .7rem;
+  color: #6B7280;
+  line-height: 1.35;
+}
+
+.confirm-ai-box {
+  background: #EEF9F2;
+  border: 1.5px solid #D8F3DC;
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.confirm-label {
+  font-size: .75rem;
+  font-weight: 800;
+  color: #1E5631;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.confirm-weight {
+  margin-top: 6px;
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: #1A3D28;
+  line-height: 1;
+}
+
+.confirm-sub {
+  margin-top: 8px;
+  font-size: .75rem;
+  color: #6B7280;
+}
+
+.confirm-metrics {
+  margin-top: 8px;
 }
 
 .slide-up-enter-active {

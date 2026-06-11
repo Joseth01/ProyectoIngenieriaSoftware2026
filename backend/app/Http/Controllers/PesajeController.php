@@ -17,6 +17,9 @@ use App\Services\ServicioIA;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Throwable;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use App\Models\Imagen;
 
 class PesajeController extends Controller
 {
@@ -207,28 +210,74 @@ class PesajeController extends Controller
     }
 
     public function estimarPeso(Request $request): JsonResponse
-    {
-        $request->validate([
-            'imagen' => 'required|image|max:10240'
-        ]);
+{
+    $datos = $request->validate([
+        'imagen' => 'required|image|max:10240',
+        'animal_id' => 'required|exists:animales,id',
+        'fecha' => 'nullable|date',
+        'fuente_id' => 'nullable|exists:fuentes_pesaje,id',
+    ]);
 
-        try {
-            $ruta = $request->file('imagen')->store('pesajes');
+    try {
+        $imagen = $request->file('imagen');
 
-            $rutaCompleta = storage_path('app/' . $ruta);
-
-            $resultado = $this->servicioIA->analizarImagen($rutaCompleta);
-
-            return ApiResponse::success(
-                'Peso estimado correctamente',
-                $resultado
-            );
-        } catch (Throwable $error) {
+        if (!$imagen || !$imagen->isValid()) {
             return ApiResponse::error(
-                $error->getMessage(),
+                'No se recibió una imagen válida.',
                 [],
-                500
+                422
             );
         }
+
+        return DB::transaction(function () use ($imagen, $datos) {
+
+            $resultadoIA = $this->servicioIA->analizarImagen($imagen);
+
+            $fecha = $datos['fecha'] ?? now()->toDateString();
+
+            $pesaje = Pesaje::create([
+                'animal_id' => $datos['animal_id'],
+                'peso_estimado' => $resultadoIA['peso_estimado'],
+                'peso_real' => null,
+                'fecha' => $fecha,
+                'fuente_id' => $datos['fuente_id'] ?? 1,
+            ]);
+
+            $rutaImagen = $imagen->store(
+                'pesajes',
+                'public'
+            );
+
+            $registroImagen = Imagen::create([
+                'pesaje_id' => $pesaje->id,
+                'url' => Storage::url($rutaImagen),
+                'procesada' => true,
+                'fecha' => $fecha,
+            ]);
+
+            $pesaje->load([
+                'animal.raza',
+                'animal.finca',
+                'fuente'
+            ]);
+
+            return ApiResponse::success(
+                'Peso estimado y pesaje guardado correctamente',
+                [
+                    'estimacion' => $resultadoIA,
+                    'pesaje' => $pesaje,
+                    'imagen' => $registroImagen,
+                ],
+                201
+            );
+        });
+
+    } catch (Throwable $error) {
+        return ApiResponse::error(
+            $error->getMessage(),
+            [],
+            500
+        );
     }
+}
 }

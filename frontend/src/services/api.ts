@@ -102,6 +102,16 @@ export interface CrearPesajeDto {
   peso_referencia?: number;
 }
 
+export interface ImagenDto {
+  id: number;
+  pesaje_id: number;
+  url: string;
+  procesada: boolean | number;
+  fecha: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface ReporteDto {
   id: number;
   tipo: string;
@@ -136,6 +146,21 @@ export interface EstimacionPesoDto {
   mensaje?: string;
 }
 
+export interface ResultadoPesajeIADto {
+  estimacion: EstimacionPesoDto;
+  pesaje: PesajeDto;
+  imagen: ImagenDto;
+}
+
+export interface ConfirmarPesajeIAParams {
+  imagen: Blob;
+  animal_id: number;
+  peso_estimado: number;
+  peso_real?: number | null;
+  fecha: string;
+  fuente_id?: number | null;
+}
+
 export function getToken(): string | null {
   return localStorage.getItem('token');
 }
@@ -154,7 +179,10 @@ export function getUsuarioLocal(): UsuarioDto | null {
   }
 }
 
-export function guardarSesion(token: string, user: UsuarioDto): void {
+export function guardarSesion(
+  token: string,
+  user: UsuarioDto
+): void {
   localStorage.setItem('token', token);
   localStorage.setItem('user', JSON.stringify(user));
 }
@@ -200,6 +228,7 @@ async function fetchJson<T>(
     const mensaje =
       data?.mensaje ||
       data?.message ||
+      data?.error ||
       'Ocurrió un error al comunicarse con el servidor.';
 
     throw new Error(mensaje);
@@ -215,6 +244,11 @@ async function fetchJson<T>(
 export const loginUsuario = async (
   data: LoginDto
 ) => {
+  const payload = {
+    email: data.email?.trim(),
+    password: data.password
+  };
+
   const response =
     await fetchJson<ApiResponse<{
       token: string;
@@ -223,7 +257,7 @@ export const loginUsuario = async (
       '/usuarios/login',
       {
         method: 'POST',
-        body: JSON.stringify(data)
+        body: JSON.stringify(payload)
       }
     );
 
@@ -234,7 +268,6 @@ export const loginUsuario = async (
 
   return response;
 };
-
 export const registrarUsuario = async (
   data: RegistroDto
 ) => {
@@ -282,21 +315,17 @@ export const logoutUsuario = async () => {
 };
 
 /* =========================
-   RAZAS
-========================= */
-
-export const getRazas = () =>
-  fetchJson<ApiResponse<RazaDto[]>>(
-    '/animales/razas'
-  );
-
-/* =========================
-   ANIMALES
+   ANIMALES / CATÁLOGOS
 ========================= */
 
 export const getAnimales = () =>
   fetchJson<ApiResponse<AnimalDto[]>>(
     '/animales'
+  );
+
+export const getRazas = () =>
+  fetchJson<ApiResponse<RazaDto[]>>(
+    '/animales/razas'
   );
 
 export const getAnimal = (
@@ -306,12 +335,14 @@ export const getAnimal = (
     `/animales/${id}`
   );
 
-export const buscarAnimalPorArete = (
+export const buscarPorArete = (
   arete: string
 ) =>
   fetchJson<ApiResponse<AnimalDto>>(
     `/animales/arete/${encodeURIComponent(arete)}`
   );
+
+export const buscarAnimalPorArete = buscarPorArete;
 
 export const getHistorialAnimal = (
   id: number
@@ -416,8 +447,18 @@ export const eliminarPesaje = (
     }
   );
 
+/* =========================
+   IA / ESTIMACIÓN DE PESO
+========================= */
+
+/**
+ * Solo analiza la imagen con IA.
+ * No guarda el pesaje todavía.
+ * El usuario decide luego si guarda el peso estimado o lo ajusta.
+ */
 export const estimarPesoPorImagen = (
-  imagen: Blob
+  imagen: Blob,
+  animalId: number
 ) => {
   const formData = new FormData();
 
@@ -427,8 +468,69 @@ export const estimarPesoPorImagen = (
     'animal.jpg'
   );
 
+  formData.append(
+    'animal_id',
+    String(animalId)
+  );
+
   return fetchJson<ApiResponse<EstimacionPesoDto>>(
     '/pesajes/estimar-peso',
+    {
+      method: 'POST',
+      body: formData
+    }
+  );
+};
+/**
+ * Guarda el pesaje confirmado por el usuario y guarda la imagen ligada al pesaje.
+ * Esta función necesita que en Laravel exista:
+ * POST /api/pesajes/confirmar-ia
+ */
+export const confirmarPesajeIA = (
+  data: ConfirmarPesajeIAParams
+) => {
+  const formData = new FormData();
+
+  formData.append(
+    'imagen',
+    data.imagen,
+    'animal.jpg'
+  );
+
+  formData.append(
+    'animal_id',
+    String(data.animal_id)
+  );
+
+  formData.append(
+    'peso_estimado',
+    String(data.peso_estimado)
+  );
+
+  if (
+    data.peso_real !== undefined &&
+    data.peso_real !== null
+  ) {
+    formData.append(
+      'peso_real',
+      String(data.peso_real)
+    );
+  }
+
+  formData.append(
+    'fecha',
+    data.fecha
+  );
+
+  if (data.fuente_id) {
+    formData.append(
+      'fuente_id',
+      String(data.fuente_id)
+    );
+  }
+
+  return fetchJson<ApiResponse<ResultadoPesajeIADto>>(
+    '/pesajes/confirmar-ia',
     {
       method: 'POST',
       body: formData
@@ -542,39 +644,39 @@ export function pesoNumerico(
 }
 
 export function formatFecha(
-  fecha?: string | null
+  value: string | null | undefined
 ): string {
-  if (!fecha) {
-    return 'Sin fecha';
+  if (!value) {
+    return '---';
   }
 
-  const date = new Date(fecha);
+  const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return fecha;
+    return value;
   }
 
-  return date.toLocaleDateString(
+  return new Intl.DateTimeFormat(
     'es-CR',
     {
-      year: 'numeric',
-      month: 'short',
-      day: '2-digit'
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
     }
-  );
+  ).format(date);
 }
 
 export function calcularEdad(
-  fechaNacimiento?: string | null
+  fechaNacimiento: string | null | undefined
 ): string {
   if (!fechaNacimiento) {
-    return 'Sin edad';
+    return '---';
   }
 
   const nacimiento = new Date(fechaNacimiento);
 
   if (Number.isNaN(nacimiento.getTime())) {
-    return 'Sin edad';
+    return '---';
   }
 
   const hoy = new Date();
@@ -588,15 +690,18 @@ export function calcularEdad(
   }
 
   if (meses < 0) {
-    return 'Sin edad';
+    return '---';
   }
 
   if (meses < 12) {
-    return `${meses} meses`;
+    return `${meses} mes${meses === 1 ? '' : 'es'}`;
   }
 
-  const años = Math.floor(meses / 12);
-  const mesesRestantes = meses % 12;
+  const años =
+    Math.floor(meses / 12);
+
+  const mesesRestantes =
+    meses % 12;
 
   if (mesesRestantes === 0) {
     return `${años} año${años === 1 ? '' : 's'}`;
