@@ -508,8 +508,8 @@ const abrirModal = async () => {
       getAnimales(),
       userId ? getFincasByUsuario(userId) : Promise.resolve(fincas.value),
     ]);
-    animales.value = aData;
-    fincas.value   = fData;
+    animales.value = aData.datos || [];
+    fincas.value   = fData.datos || [];
     if (fincas.value.length === 1) nuevoFincaId.value = fincas.value[0].id;
   } catch { /* mantiene datos previos si falla */ }
 };
@@ -527,12 +527,13 @@ const elegirAnimal = (a: AnimalDto) => {
 }
 
 function resetForm() {
-
   animalSel.value = null;
-
   peso.value = 0;
-
   pesoReal.value = null;
+  fecha.value = new Date().toISOString().slice(0, 10);
+  errorMsg.value = '';
+  success.value = false;
+}
 
 // ── Crear animal ───────────────────────────────────────────────────────────
 const crearAnimal = async () => {
@@ -586,7 +587,7 @@ const crearAnimal = async () => {
 
     // Actualizar lista y autoseleccionar el animal recién creado
     const [aData, pData] = await Promise.all([getAnimales(), getPesajes()]);
-    animales.value = aData;
+    animales.value = aData.datos || [];
     pesajes.value  = (pData.datos || [])
       .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
       .slice(0, 10);
@@ -685,14 +686,14 @@ onMounted(async () => {
       getPesajes(),
       getRazas(),
     ]);
-    animales.value = aData;
+    animales.value = aData.datos || [];
     pesajes.value  = (pData.datos || [])
       .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
       .slice(0, 10);
-    razas.value = rData;
+    razas.value = rData.datos || [];
 
     if (userId) {
-      fincas.value = await getFincasByUsuario(userId);
+      fincas.value = (await getFincasByUsuario(userId)).datos || [];
       // Autoseleccionar si solo hay una finca
       if (fincas.value.length === 1) nuevoFincaId.value = fincas.value[0].id;
     }
