@@ -11,7 +11,7 @@
             <div class="logo-dot">🐄</div>
             <span class="logo-txt">BovWeight CR</span>
           </div>
-          <button class="icon-btn">⚙</button>
+          <button class="icon-btn" @click="router.push('/tabs/dashboard')">⚙</button>
         </div>
 
         <!-- Profile hero -->
@@ -37,9 +37,9 @@
         </div>
 
         <div class="body-pad">
-          <!-- Premium badge -->
+          <!-- Rol badge -->
           <div style="margin-bottom:14px">
-            <span class="premium-badge">⭐ PREMIUM</span>
+            <span class="rol-badge" :class="`rol-${user.rol}`">{{ rolLabel }}</span>
           </div>
 
           <!-- Menu items -->
@@ -262,7 +262,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { IonPage, IonContent, IonModal, toastController } from '@ionic/vue';
-import { getFincasByUsuario, getFincas, getAnimales, FincaDto } from '@/services/api';
+import { getFincasByUsuario, getFincas, getAnimales, type FincaDto, type RolUsuario } from '@/services/api';
 
 interface FincaLocal { nombre: string; cabezas: number; ubicacion?: string | null; }
 
@@ -274,10 +274,20 @@ const mostrarModal = ref(false);
 const fincaSel     = ref<FincaLocal | null>(null);
 
 const rawUser = JSON.parse(localStorage.getItem('user') || '{}');
-const user = ref({ name: rawUser.name || 'Usuario', email: rawUser.email || '', phone: '' });
+const user = ref({
+  id:    rawUser.id   as number | undefined,
+  name:  rawUser.name  || 'Usuario',
+  email: rawUser.email || '',
+  rol:  (rawUser.rol   || 'ganadero') as RolUsuario,
+  phone: '',
+});
 
 const iniciales = computed(() =>
   user.value.name.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase() || 'U'
+);
+
+const rolLabel = computed(() =>
+  user.value.rol === 'veterinario' ? '🩺 Veterinario' : '🐄 Ganadero'
 );
 
 // Fincas y cabezas desde API
@@ -406,14 +416,15 @@ const cerrarSesion = () => {
 /* Body */
 .body-pad { padding: 16px 18px 32px; }
 
-/* Premium */
-.premium-badge {
+/* Rol badge */
+.rol-badge {
   display: inline-flex; align-items: center; gap: 4px;
-  padding: 3px 10px; border-radius: 9999px;
-  background: linear-gradient(90deg, #FEF3C7, #FDE68A);
-  border: 1px solid #F59E0B;
-  font-size: .6875rem; font-weight: 800; color: #92400E;
+  padding: 4px 12px; border-radius: 9999px;
+  font-size: .6875rem; font-weight: 800; color: #fff;
+  letter-spacing: .02em;
 }
+.rol-ganadero    { background: linear-gradient(90deg, #1E5631, #3A9E61); }
+.rol-veterinario { background: linear-gradient(90deg, #1E3A5F, #2D7AB5); }
 
 /* List items */
 .list-item {

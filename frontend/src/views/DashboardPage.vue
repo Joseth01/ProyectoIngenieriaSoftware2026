@@ -19,7 +19,7 @@
         <div class="hero-row">
 
           <div>
-            <div class="greet-sm">Buenos días,</div>
+            <div class="greet-sm">{{ saludoHora }},</div>
             <div class="greet-name">
               {{ userName }} 👋
             </div>
@@ -323,6 +323,13 @@ const fincas = ref<FincaDto[]>([]);
 
 const loading = ref(true);
 const error = ref('');
+
+const saludoHora = computed(() => {
+  const h = new Date().getHours();
+  if (h < 12) return 'Buenos días';
+  if (h < 19) return 'Buenas tardes';
+  return 'Buenas noches';
+});
 
 const userInitials = computed(() => {
   return userName.value
