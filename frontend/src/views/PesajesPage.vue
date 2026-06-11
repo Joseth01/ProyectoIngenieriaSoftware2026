@@ -2,30 +2,43 @@
   <ion-page>
     <ion-content :fullscreen="true" class="page-bg">
 
-      <!-- App bar -->
+      <!-- Header -->
       <div class="app-bar">
         <div>
           <div class="page-title">Registrar Peso</div>
           <div class="page-sub">Nueva medición</div>
         </div>
-        <button class="icon-btn" @click="resetForm">↺</button>
+
+        <button class="icon-btn" @click="resetForm">
+          ↺
+        </button>
       </div>
 
       <div class="body-pad">
 
-        <!-- ── IA banner ── -->
-        <div class="ia-banner" @click="router.push('/tabs/pesaje-vivo')">
+        <!-- IA -->
+        <div
+          class="ia-banner"
+          @click="router.push('/tabs/pesaje-vivo')"
+        >
           <div class="ia-left">
             <span class="ia-ico">🤖</span>
+
             <div>
-              <div class="ia-title">Usar IA para estimar peso</div>
-              <div class="ia-sub">Apunta la cámara al animal</div>
+              <div class="ia-title">
+                Usar IA para estimar peso
+              </div>
+
+              <div class="ia-sub">
+                Apunta la cámara al animal
+              </div>
             </div>
           </div>
+
           <span class="ia-chev">›</span>
         </div>
 
-        <!-- ── Seleccionar animal ── -->
+        <!-- Animal -->
         <div class="form-section">
           <div class="form-sec-title">Animal</div>
           <div class="animal-sel" @click="abrirModal">
@@ -34,72 +47,182 @@
               <div class="anim-sel-name">{{ animalSel ? (animalSel.nombre ?? `Arete ${animalSel.numero_arete}`) : 'Seleccionar o crear animal' }}</div>
               <div class="anim-sel-id">{{ animalSel ? `#${animalSel.numero_arete} · ${animalSel.raza?.nombre ?? 'Sin raza'}` : 'Toca para elegir' }}</div>
             </div>
+
             <span class="chev">›</span>
+
           </div>
+
         </div>
 
-        <!-- ── Peso ── -->
+        <!-- Peso -->
         <div class="form-section">
-          <div class="form-sec-title">Peso registrado</div>
+
+          <div class="form-sec-title">
+            Peso registrado
+          </div>
+
           <div class="weight-wrap">
+
             <input
               v-model.number="peso"
               type="number"
               class="weight-input"
               placeholder="0"
-              min="0"
-              step="0.1"
             />
-            <span class="weight-unit">kg</span>
+
+            <span class="weight-unit">
+              kg
+            </span>
+
           </div>
+
           <div class="adjust-row">
-            <button class="adj" @click="peso = Math.max(0, peso - 5)">−5</button>
-            <button class="adj" @click="peso = Math.max(0, peso - 1)">−1</button>
-            <button class="adj" @click="peso += 1">+1</button>
-            <button class="adj" @click="peso += 5">+5</button>
+
+            <button class="adj" @click="peso = Math.max(0, peso - 5)">
+              −5
+            </button>
+
+            <button class="adj" @click="peso = Math.max(0, peso - 1)">
+              −1
+            </button>
+
+            <button class="adj" @click="peso += 1">
+              +1
+            </button>
+
+            <button class="adj" @click="peso += 5">
+              +5
+            </button>
+
           </div>
+
         </div>
 
-        <!-- ── Peso real (opcional) ── -->
+        <!-- Peso real -->
         <div class="form-section">
-          <div class="form-sec-title">Peso real (opcional)</div>
+
+          <div class="form-sec-title">
+            Peso real (opcional)
+          </div>
+
           <div class="field-wrap">
-            <input v-model.number="pesoReal" type="number" class="field-input" placeholder="Si usaste báscula" min="0" step="0.1" />
-            <span class="field-suffix">kg</span>
+
+            <input
+              v-model.number="pesoReal"
+              type="number"
+              class="field-input"
+              placeholder="Si usaste báscula"
+            />
+
+            <span class="field-suffix">
+              kg
+            </span>
+
           </div>
+
         </div>
 
-        <!-- ── Fecha ── -->
+        <!-- Fecha -->
         <div class="form-section">
-          <div class="form-sec-title">Detalles</div>
-          <div class="form-group">
-            <label class="form-label">Fecha de medición</label>
-            <input v-model="fecha" type="date" class="field-input" />
+
+          <div class="form-sec-title">
+            Detalles
           </div>
+
+          <div class="form-group">
+
+            <label class="form-label">
+              Fecha de medición
+            </label>
+
+            <input
+              v-model="fecha"
+              type="date"
+              class="field-input"
+            />
+
+          </div>
+
         </div>
 
-        <!-- ── Feedback ── -->
-        <div v-if="success" class="feedback success">✓ Pesaje registrado exitosamente.</div>
-        <div v-if="errorMsg" class="feedback error">{{ errorMsg }}</div>
+        <!-- Feedback -->
+        <div
+          v-if="success"
+          class="feedback success"
+        >
+          ✓ Pesaje registrado exitosamente
+        </div>
 
-        <!-- ── Guardar ── -->
-        <button class="btn-save" :disabled="saving" @click="guardar">
-          <span v-if="saving">Guardando…</span>
-          <span v-else>💾 Guardar pesaje</span>
+        <div
+          v-if="errorMsg"
+          class="feedback error"
+        >
+          {{ errorMsg }}
+        </div>
+
+        <!-- Guardar -->
+        <button
+          class="btn-save"
+          :disabled="saving"
+          @click="guardar"
+        >
+
+          <span v-if="saving">
+            Guardando...
+          </span>
+
+          <span v-else>
+            💾 Guardar pesaje
+          </span>
+
         </button>
 
-        <!-- ── Historial reciente ── -->
-        <div class="sec-title" style="margin-top:24px;margin-bottom:12px">Pesajes recientes</div>
-        <div v-if="loadingPesajes" class="status-box status-loading">Cargando…</div>
-        <div v-else-if="pesajes.length === 0" class="empty-state">No hay pesajes registrados aún.</div>
+        <!-- Historial -->
+        <div class="sec-title">
+          Pesajes recientes
+        </div>
 
-        <div v-for="p in pesajes" :key="p.id" class="pesaje-row">
+        <div
+          v-if="loadingPesajes"
+          class="status-box status-loading"
+        >
+          Cargando...
+        </div>
+
+        <div
+          v-else-if="pesajes.length === 0"
+          class="empty-state"
+        >
+          No hay pesajes registrados.
+        </div>
+
+        <div
+          v-for="p in pesajes"
+          :key="p.id"
+          class="pesaje-row"
+        >
+
           <div class="pr-dot"></div>
+
           <div class="pr-info">
-            <div class="pr-animal">{{ p.animal?.nombre ?? `Animal ${p.animal_id}` }}</div>
-            <div class="pr-fecha">{{ formatFecha(p.fecha) }}</div>
+
+            <div class="pr-animal">
+              {{
+                p.animal?.nombre ||
+                `Animal ${p.animal_id}`
+              }}
+            </div>
+
+            <div class="pr-fecha">
+              {{ formatFecha(p.fecha) }}
+            </div>
+
           </div>
-          <div class="pr-peso">{{ pesoNumerico(p).toFixed(0) }} kg</div>
+
+          <div class="pr-peso">
+            {{ pesoNumerico(p).toFixed(0) }} kg
+          </div>
+
         </div>
 
       </div>
@@ -272,7 +395,9 @@
             </template>
 
           </div>
+
         </ion-content>
+
       </ion-modal>
 
     </ion-content>
@@ -280,7 +405,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+
+import {
+  ref,
+  computed,
+  onMounted
+} from 'vue';
+
 import { useRouter } from 'vue-router';
 import { IonPage, IonContent, IonModal } from '@ionic/vue';
 import {
@@ -305,8 +436,10 @@ const pesoReal       = ref<number | null>(null);
 const fecha          = ref(new Date().toISOString().slice(0, 10));
 const saving         = ref(false);
 const loadingPesajes = ref(true);
-const success        = ref(false);
-const errorMsg       = ref('');
+
+const success = ref(false);
+
+const errorMsg = ref('');
 
 // ── Modal ──────────────────────────────────────────────────────────────────
 const mostrarSelector = ref(false);
@@ -331,12 +464,23 @@ let userId: number | undefined;
 
 // ── Computadas ─────────────────────────────────────────────────────────────
 const animalesFiltrados = computed(() => {
+
   const q = busqueda.value.toLowerCase();
-  if (!q) return animales.value;
+
+  if (!q) {
+    return animales.value;
+  }
+
   return animales.value.filter(a =>
-    (a.nombre ?? '').toLowerCase().includes(q) ||
-    a.numero_arete.toLowerCase().includes(q)
+    (a.nombre || '')
+      .toLowerCase()
+      .includes(q)
+    ||
+    a.numero_arete
+      .toLowerCase()
+      .includes(q)
   );
+
 });
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -377,17 +521,18 @@ const cerrarModal = () => {
 
 const elegirAnimal = (a: AnimalDto) => {
   animalSel.value = a;
-  mostrarSelector.value = false;
-};
 
-const resetForm = () => {
+  mostrarSelector.value = false;
+
+}
+
+function resetForm() {
+
   animalSel.value = null;
+
   peso.value = 0;
+
   pesoReal.value = null;
-  fecha.value = new Date().toISOString().slice(0, 10);
-  success.value = false;
-  errorMsg.value = '';
-};
 
 // ── Crear animal ───────────────────────────────────────────────────────────
 const crearAnimal = async () => {
@@ -469,24 +614,71 @@ const guardar = async () => {
   if (!animalSel.value) { errorMsg.value = 'Selecciona un animal.'; return; }
   if (!peso.value || peso.value <= 0) { errorMsg.value = 'Ingresa un peso válido.'; return; }
   errorMsg.value = '';
+
+}
+
+async function guardar() {
+
+  if (!animalSel.value) {
+
+    errorMsg.value =
+      'Selecciona un animal';
+
+    return;
+  }
+
+  if (peso.value <= 0) {
+
+    errorMsg.value =
+      'Ingresa un peso válido';
+
+    return;
+  }
+
   saving.value = true;
+
+  errorMsg.value = '';
+
+  success.value = false;
+
   try {
+
     await crearPesaje({
       animal_id:     animalSel.value.id,
       peso_estimado: peso.value,
       peso_real:     pesoReal.value ?? undefined,
       fecha:         fecha.value,
     });
+
     success.value = true;
     resetForm();
     const r = await getPesajes();
-    pesajes.value = (r.datos || []).slice(0, 10);
-  } catch {
-    errorMsg.value = 'Error al guardar. Verifica la conexión con el servidor.';
+
+    pesajes.value =
+      (r.datos || [])
+        .sort(
+          (a, b) =>
+            new Date(b.fecha).getTime() -
+            new Date(a.fecha).getTime()
+        )
+        .slice(0, 10);
+
+    resetForm();
+
+  } catch (e: any) {
+
+    console.error(e);
+
+    errorMsg.value =
+      'Error al guardar el pesaje';
+
   } finally {
+
     saving.value = false;
+
   }
-};
+
+}
 
 // ── Montaje ────────────────────────────────────────────────────────────────
 onMounted(async () => {
@@ -514,56 +706,67 @@ onMounted(async () => {
   } catch { /* sin datos */ }
   finally { loadingPesajes.value = false; }
 });
+
 </script>
 
 <style scoped>
-.page-bg { --background: #F2F5F3; }
+
+.page-bg {
+  --background: #f4f7f5;
+}
 
 .app-bar {
-  background: #fff; padding: 14px 18px 12px;
-  display: flex; align-items: center; justify-content: space-between;
-  border-bottom: 1px solid #E5E7EB;
+  background: white;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
-.page-title { font-size: 1.25rem; font-weight: 800; color: #1A3D28; }
-.page-sub   { font-size: .75rem; color: #6B7280; }
+
+.page-title {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #1c3d2a;
+}
+
+.page-sub {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
 .icon-btn {
-  width: 34px; height: 34px; border-radius: 10px;
-  background: #F2F5F3; border: none; cursor: pointer; font-size: 15px;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 12px;
 }
 
-.body-pad { padding: 16px 18px 32px; }
-
-/* IA banner */
-.ia-banner {
-  display: flex; align-items: center; justify-content: space-between;
-  background: linear-gradient(130deg, #1A3D28, #2D7A4A);
-  border-radius: 14px; padding: 13px 14px; margin-bottom: 14px;
-  cursor: pointer; box-shadow: 0 4px 14px rgba(26,61,40,.28);
-  transition: opacity .2s;
+.body-pad {
+  padding: 16px;
 }
-.ia-banner:hover { opacity: .92; }
-.ia-left { display: flex; align-items: center; gap: 12px; }
-.ia-ico  { font-size: 22px; }
-.ia-title { font-size: .9375rem; font-weight: 800; color: #fff; }
-.ia-sub   { font-size: .6875rem; color: rgba(255,255,255,.7); margin-top: 1px; }
-.ia-chev  { color: rgba(255,255,255,.6); font-size: 22px; }
 
-/* Form sections */
 .form-section {
-  background: #fff; border-radius: 14px; padding: 14px;
-  margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.06);
-}
-.form-sec-title {
-  font-size: .6875rem; font-weight: 700; color: #9CA3AF;
-  text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px;
+  background: white;
+  padding: 16px;
+  border-radius: 16px;
+  margin-bottom: 14px;
 }
 
-/* Animal selector */
-.animal-sel {
-  display: flex; align-items: center; gap: 12px;
-  padding: 10px 12px; background: #F2F5F3;
-  border: 1.5px solid #E5E7EB; border-radius: 12px; cursor: pointer;
-  transition: border-color .15s;
+.form-sec-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: #6b7280;
+}
+
+.weight-input,
+.field-input,
+.search-input {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid #d1d5db;
+  color: #111827;
 }
 .animal-sel:hover { border-color: #1E5631; }
 .anim-emo {
@@ -618,13 +821,21 @@ onMounted(async () => {
 
 /* Feedback */
 .feedback {
-  padding: 10px 14px; border-radius: 10px;
-  font-size: .8125rem; font-weight: 600; margin-bottom: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  margin-bottom: 12px;
 }
-.success { background: #EEF9F2; color: #1E5631; border: 1px solid #D8F3DC; }
-.error   { background: #FEE2E2; color: #B91C1C; border: 1px solid #FECACA; }
 
-/* Buttons */
+.success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 .btn-save {
   width: 100%; padding: 15px;
   background: linear-gradient(135deg, #1E5631, #3A9E61);
@@ -644,18 +855,21 @@ onMounted(async () => {
 
 /* Pesaje row */
 .pesaje-row {
-  display: flex; align-items: center; gap: 10px;
-  background: #fff; border-radius: 12px; padding: 11px 13px;
-  margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  background: white;
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
 }
+
 .pr-dot {
-  width: 9px; height: 9px; border-radius: 50%;
-  background: #74C69D; flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  background: #16a34a;
+  border-radius: 50%;
+  margin-right: 12px;
 }
-.pr-info { flex: 1; min-width: 0; }
-.pr-animal { font-size: .875rem; font-weight: 600; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pr-fecha  { font-size: .6875rem; color: #6B7280; }
-.pr-peso   { font-size: .9375rem; font-weight: 800; color: #1E5631; flex-shrink: 0; }
 
 /* ── Modal tabs ────────────────────────────────────────────────────────── */
 .modal-tab-row {
@@ -683,15 +897,42 @@ onMounted(async () => {
   background: #fff; border: 1.5px solid #E5E7EB;
   border-radius: 12px; padding: 10px 14px;
 }
-.search-input {
-  flex: 1; border: none; background: transparent;
-  outline: none; font-size: .875rem; font-family: inherit;
+
+.pr-animal {
+  font-weight: 700;
 }
+
+.pr-fecha {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.pr-peso {
+  font-weight: 800;
+  color: #166534;
+}
+
+.animal-sel,
 .animal-sel-opt {
-  display: flex; align-items: center; gap: 12px;
-  padding: 12px 14px; background: #fff; border-radius: 12px;
-  margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.06);
-  cursor: pointer; transition: box-shadow .15s;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #f9fafb;
+  padding: 12px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.anim-emo {
+  font-size: 1.5rem;
+}
+
+.anim-sel-info {
+  flex: 1;
+}
+
+.anim-name {
+  font-weight: 700;
 }
 .animal-sel-opt:hover { box-shadow: 0 2px 8px rgba(0,0,0,.08); }
 

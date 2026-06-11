@@ -3,59 +3,97 @@
 namespace App\Services;
 
 use App\Domain\Animales\IAnimalRepository;
-use App\Domain\Razas\IRazaFactory;
 use App\Models\Animal;
+use Illuminate\Database\Eloquent\Collection;
 
-/**
- * Servicio de dominio para animales.
- * Usa IAnimalRepository (Repository) e IRazaFactory (Factory).
- *
- * Punto de creación 1 refactorizado: antes AnimalController
- * hacía Animal::create() con raza_id hardcodeado.
- * Ahora la lógica de dominio vive aquí y la raza se valida via factory.
- */
 class AnimalService
 {
     public function __construct(
-        private readonly IAnimalRepository $animalRepository,
-        private readonly IRazaFactory      $razaFactory
+        private readonly IAnimalRepository $animalRepository
     ) {}
 
     public function registrar(array $datos): Animal
     {
-        // Valida que la raza exista en el dominio antes de persistir
-        $razaDominio = $this->razaFactory->create($datos['nombre_raza'] ?? 'brahman');
-
         $animal = new Animal([
-            'numero_arete'    => $datos['numero_arete'],
-            'nombre'          => $datos['nombre'],
-            'raza_id'         => $datos['raza_id'],
-            'fecha_nacimiento' => $datos['fecha_nacimiento'],
-            'estado'          => 'activo',
-            'finca_id'        => $datos['finca_id'],
+            'numero_arete'      => $datos['numero_arete'],
+            'nombre'            => $datos['nombre'],
+            'raza_id'           => $datos['raza_id'],
+            'fecha_nacimiento'  => $datos['fecha_nacimiento'],
+            'estado'            => 'activo',
+            'finca_id'          => $datos['finca_id'],
         ]);
 
         $this->animalRepository->save($animal);
-        return $animal;
+
+        return $animal->load([
+            'raza',
+            'finca',
+        ]);
+    }
+
+    public function listarTodos(): Collection
+    {
+        return Animal::with([
+            'raza',
+            'finca',
+        ])
+            ->orderBy('id', 'desc')
+            ->get();
+    }
+
+    public function obtenerPorId(int $id): ?Animal
+    {
+        return Animal::with([
+            'raza',
+            'finca',
+            'pesajes.fuente',
+        ])->find($id);
     }
 
     public function buscarPorArete(string $arete): ?Animal
     {
-        return $this->animalRepository->findByArete($arete);
+        return Animal::with([
+            'raza',
+            'finca',
+            'pesajes.fuente',
+        ])
+            ->where('numero_arete', $arete)
+            ->first();
     }
 
     public function historial(int $id): ?Animal
     {
-        return $this->animalRepository->findWithPesajes($id);
+        return Animal::with([
+            'raza',
+            'finca',
+            'pesajes.fuente',
+        ])->find($id);
     }
 
-    public function listarPorFinca(int $fincaId): array
+    public function listarPorFinca(int $fincaId): Collection
     {
-        return $this->animalRepository->findAllByFinca($fincaId);
+        return Animal::with([
+            'raza',
+            'finca',
+        ])
+            ->where('finca_id', $fincaId)
+            ->orderBy('id', 'desc')
+            ->get();
     }
 
-    public function listarTodos(): array
+    public function actualizar(Animal $animal, array $datos): Animal
     {
-        return $this->animalRepository->all();
+        $animal->update($datos);
+
+        return $animal->load([
+            'raza',
+            'finca',
+        ]);
+    }
+
+    public function desactivar(Animal $animal): void
+    {
+        $animal->estado = 'inactivo';
+        $animal->save();
     }
 }

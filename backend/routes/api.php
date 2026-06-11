@@ -18,6 +18,7 @@ Route::prefix('pesajes')->group(function () {
     Route::get('/{id}', [PesajeController::class, 'obtener']);
     Route::put('/{id}', [PesajeController::class, 'actualizar']);
     Route::delete('/{id}', [PesajeController::class, 'eliminar']);
+    Route::post('/estimar-peso', [PesajeController::class, 'estimarPeso']);
 //--------------------------------------
 
 });
@@ -61,6 +62,8 @@ Route::prefix('imagenes')->group(function () {
 // RUTAS DE ANIMALES
 Route::prefix('animales')->group(function () {
 
+    Route::get('/razas', [AnimalController::class, 'razas']);
+    
     Route::post('/', [AnimalController::class, 'crear']);
     Route::get('/', [AnimalController::class, 'listar']);
     Route::get('/arete/{arete}', [AnimalController::class, 'buscarPorArete']);
@@ -71,11 +74,22 @@ Route::prefix('animales')->group(function () {
 
 });
 // RUTAS DE USUARIOS
-Route::prefix('usuarios')->group(function () {
-
+    Route::prefix('usuarios')->group(function () {
+    
+    // REGISTRO
+    Route::post('/registrar', [UsuarioController::class, 'registrar']);
     Route::post('/registro', [UsuarioController::class, 'registrar']);
+
+    // LOGIN
     Route::post('/login', [UsuarioController::class, 'login']);
-    Route::get('/perfil/{id}', [UsuarioController::class, 'perfil']);
-    Route::post('/logout', [UsuarioController::class, 'logout']);
+
+    // RUTAS PROTEGIDAS
+    Route::middleware('auth:sanctum')->group(function () {
+
+        Route::get('/perfil', [UsuarioController::class, 'perfil']);
+
+        Route::post('/logout', [UsuarioController::class, 'logout']);
+        Route::get('/perfil-completo', [UsuarioController::class, 'perfilCompleto']);
+    });
 
 });
