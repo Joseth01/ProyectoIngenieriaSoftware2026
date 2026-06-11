@@ -2,65 +2,155 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\ApiResponse;
+use App\Models\Raza;
+use App\Services\AnimalService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use App\Models\Animal;
 
 class AnimalController extends Controller
 {
-    public function crear(Request $request)
-{
-    $animal = Animal::create($request->all());
+    public function __construct(
+        private readonly AnimalService $animalService
+    ) {}
 
-    return response()->json($animal, 201);
-}
+     public function razas(): JsonResponse
+    {
+        $razas = Raza::orderBy('id')->get();
 
-public function listar()
-{
-    $animales = Animal::all();
-    return response()->json($animales);
-}
+        return ApiResponse::success(
+            'Razas obtenidas correctamente',
+            $razas
+        );
+    }
+    public function crear(Request $request): JsonResponse
+    {
+        $datos = $request->validate([
+            'numero_arete'      => 'required|string|unique:animales,numero_arete',
+            'nombre'            => 'required|string|max:255',
+            'raza_id'           => 'required|exists:razas,id',
+            'fecha_nacimiento'  => 'required|date',
+            'finca_id'          => 'required|exists:fincas,id',
+        ]);
 
-public function buscarPorArete($arete)
-{
-    $animal = Animal::where('numero_arete', $arete)->first();
+        $animal = $this->animalService->registrar($datos);
 
-    if (!$animal) {
-        return response()->json([
-            'message' => 'Animal no encontrado'
-        ], 404);
+        return ApiResponse::success(
+            'Animal registrado correctamente',
+            $animal,
+            201
+        );
     }
 
-    return response()->json($animal);
-}
+    public function listar(): JsonResponse
+    {
+        $animales = $this->animalService->listarTodos();
 
-public function historial($id)
-{
-    $animal = Animal::with('pesajes')->findOrFail($id);
-    return response()->json($animal);
-}
+        return ApiResponse::success(
+            'Animales obtenidos correctamente',
+            $animales
+        );
+    }
 
-public function obtener($id)
-{
-    $animal = Animal::findOrFail($id);
-    return response()->json($animal);
-}
+    public function buscarPorArete(string $arete): JsonResponse
+    {
+        $animal = $this->animalService->buscarPorArete($arete);
 
-public function actualizar(Request $request, $id)
-{
-    $animal = Animal::findOrFail($id);
-    $animal->update($request->all());
+        if (!$animal) {
+            return ApiResponse::error(
+                'Animal no encontrado',
+                [],
+                404
+            );
+        }
 
-    return response()->json($animal);
-}
+        return ApiResponse::success(
+            'Animal encontrado correctamente',
+            $animal
+        );
+    }
 
-public function eliminar($id)
-{
-    $animal = Animal::findOrFail($id);
-    $animal->estado = 'inactivo';
-    $animal->save();
+    public function historial(int $id): JsonResponse
+    {
+        $animal = $this->animalService->historial($id);
 
-    return response()->json([
-        'message' => 'Animal desactivado correctamente'
-    ]);
-}
+        if (!$animal) {
+            return ApiResponse::error(
+                'Animal no encontrado',
+                [],
+                404
+            );
+        }
+
+        return ApiResponse::success(
+            'Historial obtenido correctamente',
+            $animal
+        );
+    }
+
+    public function obtener(int $id): JsonResponse
+    {
+        $animal = $this->animalService->obtenerPorId($id);
+
+        if (!$animal) {
+            return ApiResponse::error(
+                'Animal no encontrado',
+                [],
+                404
+            );
+        }
+
+        return ApiResponse::success(
+            'Animal obtenido correctamente',
+            $animal
+        );
+    }
+
+    public function actualizar(Request $request, int $id): JsonResponse
+    {
+        $animal = $this->animalService->obtenerPorId($id);
+
+        if (!$animal) {
+            return ApiResponse::error(
+                'Animal no encontrado',
+                [],
+                404
+            );
+        }
+
+        $datos = $request->validate([
+            'numero_arete'      => 'sometimes|string|unique:animales,numero_arete,' . $id,
+            'nombre'            => 'sometimes|string|max:255',
+            'raza_id'           => 'sometimes|exists:razas,id',
+            'fecha_nacimiento'  => 'sometimes|date',
+            'estado'            => 'sometimes|string',
+            'finca_id'          => 'sometimes|exists:fincas,id',
+        ]);
+
+        $animal = $this->animalService->actualizar($animal, $datos);
+
+        return ApiResponse::success(
+            'Animal actualizado correctamente',
+            $animal
+        );
+    }
+
+    public function eliminar(int $id): JsonResponse
+    {
+        $animal = $this->animalService->obtenerPorId($id);
+
+        if (!$animal) {
+            return ApiResponse::error(
+                'Animal no encontrado',
+                [],
+                404
+            );
+        }
+
+        $this->animalService->desactivar($animal);
+
+        return ApiResponse::success(
+            'Animal desactivado correctamente'
+        );
+    }
 }

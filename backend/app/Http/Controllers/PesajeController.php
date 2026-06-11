@@ -2,89 +2,301 @@
 
 namespace App\Http\Controllers;
 
+use App\Domain\Pesajes\PesajeSubject;
+use App\Estimacion\AlgoritmoRegresionLineal;
+use App\Estimacion\AlgoritmoTablaReferencia;
+use App\Estimacion\AlgoritmoYolov8;
+use App\Helpers\ApiResponse;
 use App\Models\Pesaje;
-use Illuminate\Http\Request;
+use App\Observers\AlertaSMS;
+use App\Observers\NotificadorPropietario;
+use App\Observers\RecalculadorICC;
+use App\Observers\WebhookSenasa;
+use App\Services\EstimadorPesoService;
+use App\Services\ServicioIA;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Throwable;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use App\Models\Imagen;
 
 class PesajeController extends Controller
 {
+    public function __construct(
+        private readonly ServicioIA $servicioIA
+    ) {}
+
     public function listar(): JsonResponse
     {
-        $pesajes = Pesaje::all();
+        $pesajes = Pesaje::with([
+                'animal.raza',
+                'animal.finca',
+                'fuente'
+            ])
+            ->orderBy('fecha', 'desc')
+            ->get();
 
-        return response()->json([
-            'exito' => true,
-            'datos' => $pesajes
-        ]);
+        return ApiResponse::success(
+            'Pesajes obtenidos correctamente',
+            $pesajes
+        );
     }
 
     public function obtenerPorAnimal(int $animal_id): JsonResponse
     {
-        $pesajes = Pesaje::where('animal_id', $animal_id)->get();
+        $pesajes = Pesaje::with([
+                'animal.raza',
+                'animal.finca',
+                'fuente'
+            ])
+            ->where('animal_id', $animal_id)
+            ->orderBy('fecha', 'desc')
+            ->get();
 
-        return response()->json([
-            'exito' => true,
-            'datos' => $pesajes
-        ]);
+        return ApiResponse::success(
+            'Pesajes del animal obtenidos correctamente',
+            $pesajes
+        );
     }
 
     public function crear(Request $request): JsonResponse
     {
-        $datos = $this->validarDatos($request);
+        $datos = $request->validate([
+            'animal_id' => 'required|exists:animales,id',
+            'fecha' => 'required|date',
+            'fuente_id' => 'nullable|exists:fuentes_pesaje,id',
 
-        $pesaje = Pesaje::create($datos);
+            'peso_estimado' => 'nullable|numeric|min:0',
+            'peso_real' => 'nullable|numeric|min:0',
 
-        return response()->json([
-            'exito' => true,
-            'mensaje' => 'Pesaje creado correctamente',
-            'datos' => $pesaje
-        ], 201);
+            'metodo_estimacion' => 'nullable|in:yolov8,regresion,tabla',
+
+            'raza' => 'nullable|string',
+            'edad_meses' => 'nullable|integer|min:1',
+            'largo_corporal_cm' => 'nullable|numeric',
+            'perimetro_toracico_cm' => 'nullable|numeric',
+            'peso_referencia' => 'nullable|numeric',
+        ]);
+
+        $resultadoEstimacion = null;
+
+        if (!empty($datos['peso_estimado'])) {
+            $pesoEstimado = (float) $datos['peso_estimado'];
+        } else {
+            $metodo = $datos['metodo_estimacion'] ?? 'tabla';
+
+            $algoritmo = match ($metodo) {
+                'regresion' => new AlgoritmoRegresionLineal(),
+                'tabla' => new AlgoritmoTablaReferencia(),
+                default => new AlgoritmoYolov8(),
+            };
+
+            $estimador = new EstimadorPesoService($algoritmo);
+            $resultadoEstimacion = $estimador->estimar($datos);
+
+            $pesoEstimado = $resultadoEstimacion->pesoKg;
+        }
+
+        $pesaje = new Pesaje([
+            'animal_id' => $datos['animal_id'],
+            'peso_estimado' => $pesoEstimado,
+            'peso_real' => $datos['peso_real'] ?? null,
+            'fecha' => $datos['fecha'],
+            'fuente_id' => $datos['fuente_id'] ?? null,
+        ]);
+
+        $subject = new PesajeSubject();
+
+        $subject->suscribir(new NotificadorPropietario());
+        $subject->suscribir(new RecalculadorICC());
+        $subject->suscribir(new WebhookSenasa());
+        $subject->suscribir(new AlertaSMS());
+
+        $pesaje = $subject->registrar($pesaje);
+
+        $pesaje->load([
+            'animal.raza',
+            'animal.finca',
+            'fuente'
+        ]);
+
+        $respuesta = $pesaje->toArray();
+
+        if ($resultadoEstimacion) {
+            $respuesta['estimacion'] = $resultadoEstimacion->toArray();
+        }
+
+        return ApiResponse::success(
+            'Pesaje registrado correctamente',
+            $respuesta,
+            201
+        );
     }
 
     public function obtener(int $id): JsonResponse
     {
-        $pesaje = Pesaje::findOrFail($id);
+        $pesaje = Pesaje::with([
+                'animal.raza',
+                'animal.finca',
+                'fuente'
+            ])
+            ->find($id);
 
-        return response()->json([
-            'exito' => true,
-            'datos' => $pesaje
-        ]);
+        if (!$pesaje) {
+            return ApiResponse::error(
+                'Pesaje no encontrado',
+                [],
+                404
+            );
+        }
+
+        return ApiResponse::success(
+            'Pesaje obtenido correctamente',
+            $pesaje
+        );
     }
 
     public function actualizar(Request $request, int $id): JsonResponse
     {
-        $pesaje = Pesaje::findOrFail($id);
+        $pesaje = Pesaje::find($id);
 
-        $datos = $this->validarDatos($request);
+        if (!$pesaje) {
+            return ApiResponse::error(
+                'Pesaje no encontrado',
+                [],
+                404
+            );
+        }
+
+        $datos = $request->validate([
+            'peso_estimado' => 'required|numeric|min:0',
+            'peso_real' => 'nullable|numeric|min:0',
+            'fecha' => 'required|date',
+            'fuente_id' => 'nullable|exists:fuentes_pesaje,id',
+        ]);
 
         $pesaje->update($datos);
 
-        return response()->json([
-            'exito' => true,
-            'mensaje' => 'Pesaje actualizado correctamente',
-            'datos' => $pesaje
+        $pesaje->load([
+            'animal.raza',
+            'animal.finca',
+            'fuente'
         ]);
+
+        return ApiResponse::success(
+            'Pesaje actualizado correctamente',
+            $pesaje
+        );
     }
 
     public function eliminar(int $id): JsonResponse
     {
-        $pesaje = Pesaje::findOrFail($id);
+        $pesaje = Pesaje::find($id);
+
+        if (!$pesaje) {
+            return ApiResponse::error(
+                'Pesaje no encontrado',
+                [],
+                404
+            );
+        }
+
         $pesaje->delete();
 
-        return response()->json([
-            'exito' => true,
-            'mensaje' => 'Pesaje eliminado correctamente'
-        ]);
+        return ApiResponse::success(
+            'Pesaje eliminado correctamente'
+        );
     }
 
-    private function validarDatos(Request $request): array
+    public function estimarPeso(Request $request): JsonResponse
     {
-        return $request->validate([
-            'animal_id' => 'required|exists:animals,id',
-            'peso_estimado' => 'required|numeric|min:0',
-            'peso_real' => 'nullable|numeric|min:0',
-            'fecha' => 'required|date',
-            'fuente' => 'nullable|string|max:255'
+        // El microservicio en Render puede tardar hasta 60 s en despertar (free tier).
+        // Aumentamos el límite de ejecución solo para este endpoint.
+        set_time_limit(120);
+
+        $request->validate([
+            'imagen'      => 'required|image|max:10240',
+            'raza'        => 'nullable|string|max:50',
+            'edad_meses'  => 'nullable|integer|min:0',
         ]);
+
+        try {
+            $rutaRelativa = $request->file('imagen')->store('pesajes');
+            $raza         = $request->input('raza', 'brahman');
+            $edadMeses    = (int) $request->input('edad_meses', 0);
+
+            $resultado = $this->servicioIA->analizarImagen(
+                $rutaRelativa,
+                $raza,
+                $edadMeses
+            );
+
+            return ApiResponse::success('Peso estimado correctamente', $resultado);
+
+        } catch (\Throwable $error) {
+            // Distinguir errores de validación de imagen (422) de errores del servidor (500)
+            $esErrorImagen = str_contains($error->getMessage(), 'bovino')
+                          || str_contains($error->getMessage(), 'imagen')
+                          || str_contains($error->getMessage(), 'IA')
+                          || str_contains($error->getMessage(), 'animal');
+
+            return ApiResponse::error(
+                'No se recibió una imagen válida.',
+                [],
+                $esErrorImagen ? 422 : 500
+            );
+        }
+
+        return DB::transaction(function () use ($imagen, $datos) {
+
+            $resultadoIA = $this->servicioIA->analizarImagen($imagen);
+
+            $fecha = $datos['fecha'] ?? now()->toDateString();
+
+            $pesaje = Pesaje::create([
+                'animal_id' => $datos['animal_id'],
+                'peso_estimado' => $resultadoIA['peso_estimado'],
+                'peso_real' => null,
+                'fecha' => $fecha,
+                'fuente_id' => $datos['fuente_id'] ?? 1,
+            ]);
+
+            $rutaImagen = $imagen->store(
+                'pesajes',
+                'public'
+            );
+
+            $registroImagen = Imagen::create([
+                'pesaje_id' => $pesaje->id,
+                'url' => Storage::url($rutaImagen),
+                'procesada' => true,
+                'fecha' => $fecha,
+            ]);
+
+            $pesaje->load([
+                'animal.raza',
+                'animal.finca',
+                'fuente'
+            ]);
+
+            return ApiResponse::success(
+                'Peso estimado y pesaje guardado correctamente',
+                [
+                    'estimacion' => $resultadoIA,
+                    'pesaje' => $pesaje,
+                    'imagen' => $registroImagen,
+                ],
+                201
+            );
+        });
+
+    } catch (Throwable $error) {
+        return ApiResponse::error(
+            $error->getMessage(),
+            [],
+            500
+        );
     }
+}
 }

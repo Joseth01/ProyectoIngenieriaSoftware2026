@@ -1,0 +1,97 @@
+
+
+:root {
+  /* ── Ionic primary (green) ── */
+  --ion-color-primary:         #1E5631;
+  --ion-color-primary-rgb:     30, 86, 49;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-shade:   #1a4b2b;
+  --ion-color-primary-tint:    #35683e;
+
+  /* ── Brand greens ── */
+  --bov-950: #0D2B1A;
+  --bov-900: #1A3D28;
+  --bov-800: #1E5631;
+  --bov-700: #2D7A4A;
+  --bov-600: #3A9E61;
+  --bov-500: #52B788;
+  --bov-400: #74C69D;
+  --bov-200: #B7E5CC;
+  --bov-100: #D8F3DC;
+  --bov-50:  #EEF9F2;
+
+  /* ── Semantic ── */
+  --bov-danger:      #EF4444;
+  --bov-danger-bg:   #FEE2E2;
+  --bov-warning:     #F59E0B;
+  --bov-warning-bg:  #FEF3C7;
+  --bov-info:        #3B82F6;
+  --bov-info-bg:     #DBEAFE;
+
+  /* ── Neutrals ── */
+  --bov-ink:    #111827;
+  --bov-ink2:   #374151;
+  --bov-muted:  #6B7280;
+  --bov-dim:    #9CA3AF;
+  --bov-line:   #E5E7EB;
+  --bov-bg:     #F2F5F3;
+  --bov-card:   #FFFFFF;
+
+  /* ── Radius ── */
+  --bov-r-sm:  8px;
+  --bov-r-md:  12px;
+  --bov-r-lg:  16px;
+  --bov-r-xl:  24px;
+  --bov-r-f:   9999px;
+
+  /* ── Shadows ── */
+  --bov-sh-xs: 0 1px 3px rgba(0,0,0,.06);
+  --bov-sh-sm: 0 2px 8px rgba(0,0,0,.08);
+  --bov-sh-md: 0 4px 16px rgba(0,0,0,.10);
+  --bov-sh-lg: 0 8px 32px rgba(0,0,0,.14);
+
+  /* ── Ionic background overrides ── */
+  --ion-background-color:        var(--bov-bg);
+  --ion-background-color-rgb:    242,245,243;
+  --ion-text-color:              var(--bov-ink);
+  --ion-text-color-rgb:          17,24,39;
+  --ion-toolbar-background:      var(--bov-card);
+  --ion-tab-bar-background:      var(--bov-card);
+  --ion-tab-bar-border-color:    var(--bov-line);
+  --ion-item-background:         var(--bov-card);
+  --ion-card-background:         var(--bov-card);
+}
+
+/* ── Global resets ── */
+html, body, ion-app {
+  background: var(--bov-bg);
+  --background: var(--bov-bg);
+}
+
+ion-content {
+  --background: var(--bov-bg);
+}
+
+/* Prevent invisible pages */
+.ion-page-invisible {
+  opacity: 1 !important;
+  display: block !important;
+}
+
+/* Tab bar */
+ion-tab-bar {
+  border-top: 1px solid var(--bov-line);
+  --background: var(--bov-card);
+  height: 64px;
+}
+
+ion-tab-button {
+  --color:          var(--bov-dim);
+  --color-selected: var(--bov-800);
+}
+
+/* Toolbar */
+ion-toolbar {
+  --background: var(--bov-card);
+  --border-color: var(--bov-line);
+}
