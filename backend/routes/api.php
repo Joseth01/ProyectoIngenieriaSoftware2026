@@ -19,6 +19,7 @@ Route::prefix('pesajes')->group(function () {
     Route::put('/{id}', [PesajeController::class, 'actualizar']);
     Route::delete('/{id}', [PesajeController::class, 'eliminar']);
     Route::post('/estimar-peso', [PesajeController::class, 'estimarPeso']);
+    Route::post('/confirmar-ia', [PesajeController::class, 'confirmarIA']);
 //--------------------------------------
 
 });

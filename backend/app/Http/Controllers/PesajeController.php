@@ -248,4 +248,55 @@ class PesajeController extends Controller
             );
         }
     }
+
+    public function confirmarIA(Request $request): JsonResponse
+    {
+        $request->validate([
+            'animal_id'     => 'required|integer|exists:animales,id',
+            'peso_estimado' => 'required|numeric|min:1',
+            'peso_real'     => 'nullable|numeric|min:1',
+            'fecha'         => 'required|date',
+            'imagen'        => 'nullable|image|max:10240',
+            'fuente_id'     => 'nullable|integer|exists:fuentes_pesaje,id',
+        ]);
+
+        try {
+            return DB::transaction(function () use ($request) {
+
+                $pesaje = Pesaje::create([
+                    'animal_id'     => $request->integer('animal_id'),
+                    'peso_estimado' => $request->input('peso_estimado'),
+                    'peso_real'     => $request->input('peso_real'),
+                    'fecha'         => $request->input('fecha'),
+                    'fuente_id'     => $request->input('fuente_id', 2),
+                ]);
+
+                $registroImagen = null;
+
+                if ($request->hasFile('imagen')) {
+                    $rutaImagen = $request->file('imagen')->store('pesajes', 'public');
+                    $registroImagen = Imagen::create([
+                        'pesaje_id' => $pesaje->id,
+                        'url'       => Storage::url($rutaImagen),
+                        'procesada' => true,
+                        'fecha'     => $request->input('fecha'),
+                    ]);
+                }
+
+                $pesaje->load(['animal.raza', 'animal.finca', 'fuente']);
+
+                return ApiResponse::success(
+                    'Pesaje guardado correctamente',
+                    [
+                        'pesaje' => $pesaje,
+                        'imagen' => $registroImagen,
+                    ],
+                    201
+                );
+            });
+
+        } catch (\Throwable $e) {
+            return ApiResponse::error($e->getMessage(), [], 500);
+        }
+    }
 }
