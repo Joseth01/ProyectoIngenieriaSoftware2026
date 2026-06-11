@@ -18,6 +18,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Throwable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Imagen;
 
@@ -235,14 +236,21 @@ class PesajeController extends Controller
             return ApiResponse::success('Peso estimado correctamente', $resultado);
 
         } catch (\Throwable $error) {
+            $mensaje = $error->getMessage();
+
             // Distinguir errores de validación de imagen (422) de errores del servidor (500)
-            $esErrorImagen = str_contains($error->getMessage(), 'bovino')
-                          || str_contains($error->getMessage(), 'imagen')
-                          || str_contains($error->getMessage(), 'IA')
-                          || str_contains($error->getMessage(), 'animal');
+            $esErrorImagen = str_contains($mensaje, 'bovino')
+                          || str_contains($mensaje, 'imagen')
+                          || str_contains($mensaje, 'IA')
+                          || str_contains($mensaje, 'animal')
+                          || str_contains($mensaje, 'válida')
+                          || str_contains($mensaje, 'detectado')
+                          || str_contains($mensaje, 'peso');
+
+            Log::warning('[estimarPeso] Error al analizar imagen', ['error' => $mensaje]);
 
             return ApiResponse::error(
-                'No se recibió una imagen válida.',
+                $mensaje ?: 'No se pudo procesar la imagen.',
                 [],
                 $esErrorImagen ? 422 : 500
             );
