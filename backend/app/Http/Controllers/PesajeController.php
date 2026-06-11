@@ -247,56 +247,5 @@ class PesajeController extends Controller
                 $esErrorImagen ? 422 : 500
             );
         }
-
-        return DB::transaction(function () use ($imagen, $datos) {
-
-            $resultadoIA = $this->servicioIA->analizarImagen($imagen);
-
-            $fecha = $datos['fecha'] ?? now()->toDateString();
-
-            $pesaje = Pesaje::create([
-                'animal_id' => $datos['animal_id'],
-                'peso_estimado' => $resultadoIA['peso_estimado'],
-                'peso_real' => null,
-                'fecha' => $fecha,
-                'fuente_id' => $datos['fuente_id'] ?? 1,
-            ]);
-
-            $rutaImagen = $imagen->store(
-                'pesajes',
-                'public'
-            );
-
-            $registroImagen = Imagen::create([
-                'pesaje_id' => $pesaje->id,
-                'url' => Storage::url($rutaImagen),
-                'procesada' => true,
-                'fecha' => $fecha,
-            ]);
-
-            $pesaje->load([
-                'animal.raza',
-                'animal.finca',
-                'fuente'
-            ]);
-
-            return ApiResponse::success(
-                'Peso estimado y pesaje guardado correctamente',
-                [
-                    'estimacion' => $resultadoIA,
-                    'pesaje' => $pesaje,
-                    'imagen' => $registroImagen,
-                ],
-                201
-            );
-        });
-
-    } catch (Throwable $error) {
-        return ApiResponse::error(
-            $error->getMessage(),
-            [],
-            500
-        );
     }
-}
 }
