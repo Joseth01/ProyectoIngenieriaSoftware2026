@@ -1,32 +1,30 @@
-export const API_BASE = 'http://127.0.0.1:8000/api';
-
-// Cuando pruebes en celular físico, cambia temporalmente por la IP de tu PC.
-// Ejemplo:
-// export const API_BASE = 'http://192.168.1.15:8000/api';
-
-// ─────────────────────────────────────────────
-// DTOs GENERALES
-// ─────────────────────────────────────────────
+const API_BASE = 'http://127.0.0.1:8000/api';
 
 export interface ApiResponse<T> {
   exito: boolean;
   mensaje: string;
   datos: T;
-  errores?: Record<string, string[]> | string[];
+  errores?: any;
 }
 
 export interface UsuarioDto {
   id: number;
   name: string;
   email: string;
-  rol: 'admin' | 'ganadero' | 'veterinario' | string;
-  created_at?: string;
-  updated_at?: string;
+  rol?: string;
 }
 
 export interface LoginDto {
-  usuario: UsuarioDto;
-  token: string;
+  email: string;
+  password: string;
+}
+
+export interface RegistroDto {
+  name: string;
+  email: string;
+  password: string;
+  password_confirmation?: string;
+  rol?: string;
 }
 
 export interface RazaDto {
@@ -39,6 +37,7 @@ export interface RazaDto {
 export interface FuentePesajeDto {
   id: number;
   nombre: string;
+  descripcion?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -46,8 +45,9 @@ export interface FuentePesajeDto {
 export interface FincaDto {
   id: number;
   nombre: string;
-  ubicacion: string | null;
-  user_id: number;
+  ubicacion?: string | null;
+  descripcion?: string | null;
+  user_id?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -55,26 +55,22 @@ export interface FincaDto {
 export interface AnimalDto {
   id: number;
   numero_arete: string;
-  nombre: string | null;
-
-  raza_id: number | null;
-  raza?: RazaDto | null;
-
-  fecha_nacimiento: string | null;
-  estado: string;
-
-  finca_id: number | null;
-  finca?: FincaDto | null;
-
+  nombre: string;
+  raza_id: number;
+  finca_id: number;
+  fecha_nacimiento: string;
+  estado?: string;
   created_at?: string;
   updated_at?: string;
+  raza?: RazaDto | null;
+  finca?: FincaDto | null;
+  pesajes?: PesajeDto[];
 }
 
 export interface CrearAnimalDto {
   numero_arete: string;
   nombre: string;
   raza_id: number;
-  nombre_raza: string;
   fecha_nacimiento: string;
   finca_id: number;
 }
@@ -82,36 +78,57 @@ export interface CrearAnimalDto {
 export interface PesajeDto {
   id: number;
   animal_id: number;
-
-  peso_estimado: number | string;
-  peso_real: number | string | null;
-
-  fecha: string;
-  fuente_id: number | null;
-
-  fuente?: FuentePesajeDto | null;
-  animal?: AnimalDto | null;
-
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface CrearPesajeDto {
-  animal_id: number;
   peso_estimado: number | string;
   peso_real?: number | string | null;
   fecha: string;
   fuente_id?: number | null;
+  created_at?: string;
+  updated_at?: string;
+  animal?: AnimalDto | null;
+  fuente?: FuentePesajeDto | null;
+}
+
+export interface CrearPesajeDto {
+  animal_id: number;
+  peso_estimado?: number;
+  peso_real?: number | null;
+  fecha: string;
+  fuente_id?: number | null;
+  metodo_estimacion?: 'yolov8' | 'regresion' | 'tabla';
+  raza?: string;
+  edad_meses?: number;
+  largo_corporal_cm?: number;
+  perimetro_toracico_cm?: number;
+  peso_referencia?: number;
+}
+
+export interface ImagenDto {
+  id: number;
+  pesaje_id: number;
+  url: string;
+  procesada: boolean | number;
+  fecha: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface ReporteDto {
   id: number;
-  user_id: number;
   tipo: string;
-  archivo_url: string | null;
   fecha: string;
+  archivo_url?: string | null;
+  user_id?: number;
+  finca_id?: number | null;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface CrearReporteDto {
+  tipo: string;
+  fecha: string;
+  archivo_url?: string | null;
+  user_id?: number;
+  finca_id?: number | null;
 }
 
 export interface PerfilCompletoDto {
@@ -124,68 +141,80 @@ export interface PerfilCompletoDto {
 export interface EstimacionPesoDto {
   peso_estimado: number;
   confianza?: number;
-  condicion_corporal?: number;
-  alzada_estimada?: number;
+  condicion_corporal?: number | null;
+  alzada_estimada?: number | null;
   mensaje?: string;
 }
 
-// ─────────────────────────────────────────────
-// SESIÓN LOCAL
-// ─────────────────────────────────────────────
+export interface ResultadoPesajeIADto {
+  estimacion: EstimacionPesoDto;
+  pesaje: PesajeDto;
+  imagen: ImagenDto;
+}
+
+export interface ConfirmarPesajeIAParams {
+  imagen: Blob;
+  animal_id: number;
+  peso_estimado: number;
+  peso_real?: number | null;
+  fecha: string;
+  fuente_id?: number | null;
+}
 
 export function getToken(): string | null {
   return localStorage.getItem('token');
 }
 
 export function getUsuarioLocal(): UsuarioDto | null {
-  const rawUser = localStorage.getItem('user');
+  const user = localStorage.getItem('user');
 
-  if (!rawUser) {
+  if (!user) {
     return null;
   }
 
   try {
-    return JSON.parse(rawUser) as UsuarioDto;
+    return JSON.parse(user) as UsuarioDto;
   } catch {
-    localStorage.removeItem('user');
     return null;
   }
 }
 
-export function guardarSesion(datos: LoginDto): void {
-  localStorage.setItem('token', datos.token);
-  localStorage.setItem('user', JSON.stringify(datos.usuario));
+export function guardarSesion(
+  token: string,
+  user: UsuarioDto
+): void {
+  localStorage.setItem('token', token);
+  localStorage.setItem('user', JSON.stringify(user));
 }
 
 export function limpiarSesion(): void {
   localStorage.removeItem('token');
   localStorage.removeItem('user');
-  localStorage.removeItem('usuario');
 }
 
-// ─────────────────────────────────────────────
-// FETCH BASE
-// ─────────────────────────────────────────────
-
 async function fetchJson<T>(
-  path: string,
+  endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
   const token = getToken();
 
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
+  const isFormData =
+    options.body instanceof FormData;
 
-      ...(token
-        ? { Authorization: `Bearer ${token}` }
-        : {}),
+  const headers: HeadersInit = {
+    Accept: 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(options.headers || {})
+  };
 
-      ...options.headers
+  const response = await fetch(
+    `${API_BASE}${endpoint}`,
+    {
+      ...options,
+      headers
     }
-  });
+  );
 
   let data: any = null;
 
@@ -200,7 +229,7 @@ async function fetchJson<T>(
       data?.mensaje ||
       data?.message ||
       data?.error ||
-      `Error ${response.status}`;
+      'Ocurrió un error al comunicarse con el servidor.';
 
     throw new Error(mensaje);
   }
@@ -208,40 +237,59 @@ async function fetchJson<T>(
   return data as T;
 }
 
-// ─────────────────────────────────────────────
-// USUARIOS
-// ─────────────────────────────────────────────
+/* =========================
+   USUARIOS / AUTENTICACIÓN
+========================= */
 
-export const loginUsuario = (
-  email: string,
-  password: string
-) =>
-  fetchJson<ApiResponse<LoginDto>>(
-    '/usuarios/login',
-    {
-      method: 'POST',
-      body: JSON.stringify({
-        email,
-        password
-      })
-    }
+export const loginUsuario = async (
+  data: LoginDto
+) => {
+  const payload = {
+    email: data.email?.trim(),
+    password: data.password
+  };
+
+  const response =
+    await fetchJson<ApiResponse<{
+      token: string;
+      usuario: UsuarioDto;
+    }>>(
+      '/usuarios/login',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }
+    );
+
+  guardarSesion(
+    response.datos.token,
+    response.datos.usuario
   );
 
-export const registrarUsuario = (
-  data: {
-    name: string;
-    email: string;
-    password: string;
-    rol: string;
-  }
-) =>
-  fetchJson<ApiResponse<LoginDto>>(
-    '/usuarios/registro',
-    {
-      method: 'POST',
-      body: JSON.stringify(data)
-    }
+  return response;
+};
+export const registrarUsuario = async (
+  data: RegistroDto
+) => {
+  const response =
+    await fetchJson<ApiResponse<{
+      token: string;
+      usuario: UsuarioDto;
+    }>>(
+      '/usuarios/registro',
+      {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }
+    );
+
+  guardarSesion(
+    response.datos.token,
+    response.datos.usuario
   );
+
+  return response;
+};
 
 export const getPerfil = () =>
   fetchJson<ApiResponse<UsuarioDto>>(
@@ -253,34 +301,52 @@ export const getPerfilCompleto = () =>
     '/usuarios/perfil-completo'
   );
 
-export const logoutUsuario = () =>
-  fetchJson<ApiResponse<void>>(
-    '/usuarios/logout',
-    {
-      method: 'POST'
-    }
-  );
+export const logoutUsuario = async () => {
+  try {
+    await fetchJson<ApiResponse<null>>(
+      '/usuarios/logout',
+      {
+        method: 'POST'
+      }
+    );
+  } finally {
+    limpiarSesion();
+  }
+};
 
-// ─────────────────────────────────────────────
-// ANIMALES
-// ─────────────────────────────────────────────
+/* =========================
+   ANIMALES / CATÁLOGOS
+========================= */
 
 export const getAnimales = () =>
   fetchJson<ApiResponse<AnimalDto[]>>(
     '/animales'
   );
 
-export const getAnimal = (id: number) =>
+export const getRazas = () =>
+  fetchJson<ApiResponse<RazaDto[]>>(
+    '/animales/razas'
+  );
+
+export const getAnimal = (
+  id: number
+) =>
   fetchJson<ApiResponse<AnimalDto>>(
     `/animales/${id}`
   );
 
-export const buscarPorArete = (arete: string) =>
+export const buscarPorArete = (
+  arete: string
+) =>
   fetchJson<ApiResponse<AnimalDto>>(
     `/animales/arete/${encodeURIComponent(arete)}`
   );
 
-export const getHistorialAnimal = (id: number) =>
+export const buscarAnimalPorArete = buscarPorArete;
+
+export const getHistorialAnimal = (
+  id: number
+) =>
   fetchJson<ApiResponse<AnimalDto>>(
     `/animales/${id}/historial`
   );
@@ -303,7 +369,9 @@ export const crearAnimalRapido = (
 
 export const actualizarAnimal = (
   id: number,
-  data: Partial<AnimalDto>
+  data: Partial<CrearAnimalDto> & {
+    estado?: string;
+  }
 ) =>
   fetchJson<ApiResponse<AnimalDto>>(
     `/animales/${id}`,
@@ -313,24 +381,28 @@ export const actualizarAnimal = (
     }
   );
 
-export const eliminarAnimal = (id: number) =>
-  fetchJson<ApiResponse<void>>(
+export const eliminarAnimal = (
+  id: number
+) =>
+  fetchJson<ApiResponse<null>>(
     `/animales/${id}`,
     {
       method: 'DELETE'
     }
   );
 
-// ─────────────────────────────────────────────
-// PESAJES
-// ─────────────────────────────────────────────
+/* =========================
+   PESAJES
+========================= */
 
 export const getPesajes = () =>
   fetchJson<ApiResponse<PesajeDto[]>>(
     '/pesajes'
   );
 
-export const getPesaje = (id: number) =>
+export const getPesaje = (
+  id: number
+) =>
   fetchJson<ApiResponse<PesajeDto>>(
     `/pesajes/${id}`
   );
@@ -355,7 +427,7 @@ export const crearPesaje = (
 
 export const actualizarPesaje = (
   id: number,
-  data: Partial<PesajeDto>
+  data: Partial<CrearPesajeDto>
 ) =>
   fetchJson<ApiResponse<PesajeDto>>(
     `/pesajes/${id}`,
@@ -365,23 +437,29 @@ export const actualizarPesaje = (
     }
   );
 
-export const eliminarPesaje = (id: number) =>
-  fetchJson<ApiResponse<void>>(
+export const eliminarPesaje = (
+  id: number
+) =>
+  fetchJson<ApiResponse<null>>(
     `/pesajes/${id}`,
     {
       method: 'DELETE'
     }
   );
 
-// ─────────────────────────────────────────────
-// IA / ESTIMACIÓN DE PESO
-// ─────────────────────────────────────────────
+/* =========================
+   IA / ESTIMACIÓN DE PESO
+========================= */
 
-export const estimarPesoPorImagen = async (
-  imagen: File | Blob
-): Promise<ApiResponse<EstimacionPesoDto>> => {
-  const token = getToken();
-
+/**
+ * Solo analiza la imagen con IA.
+ * No guarda el pesaje todavía.
+ * El usuario decide luego si guarda el peso estimado o lo ajusta.
+ */
+export const estimarPesoPorImagen = (
+  imagen: Blob,
+  animalId: number
+) => {
   const formData = new FormData();
 
   formData.append(
@@ -390,51 +468,88 @@ export const estimarPesoPorImagen = async (
     'animal.jpg'
   );
 
-  const response = await fetch(
-    `${API_BASE}/pesajes/estimar-peso`,
+  formData.append(
+    'animal_id',
+    String(animalId)
+  );
+
+  return fetchJson<ApiResponse<EstimacionPesoDto>>(
+    '/pesajes/estimar-peso',
     {
       method: 'POST',
-      headers: {
-        Accept: 'application/json',
-
-        ...(token
-          ? { Authorization: `Bearer ${token}` }
-          : {})
-      },
       body: formData
     }
   );
+};
+/**
+ * Guarda el pesaje confirmado por el usuario y guarda la imagen ligada al pesaje.
+ * Esta función necesita que en Laravel exista:
+ * POST /api/pesajes/confirmar-ia
+ */
+export const confirmarPesajeIA = (
+  data: ConfirmarPesajeIAParams
+) => {
+  const formData = new FormData();
 
-  let data: any = null;
+  formData.append(
+    'imagen',
+    data.imagen,
+    'animal.jpg'
+  );
 
-  try {
-    data = await response.json();
-  } catch {
-    data = null;
-  }
+  formData.append(
+    'animal_id',
+    String(data.animal_id)
+  );
 
-  if (!response.ok) {
-    throw new Error(
-      data?.mensaje ||
-      data?.message ||
-      data?.error ||
-      `Error ${response.status}`
+  formData.append(
+    'peso_estimado',
+    String(data.peso_estimado)
+  );
+
+  if (
+    data.peso_real !== undefined &&
+    data.peso_real !== null
+  ) {
+    formData.append(
+      'peso_real',
+      String(data.peso_real)
     );
   }
 
-  return data as ApiResponse<EstimacionPesoDto>;
+  formData.append(
+    'fecha',
+    data.fecha
+  );
+
+  if (data.fuente_id) {
+    formData.append(
+      'fuente_id',
+      String(data.fuente_id)
+    );
+  }
+
+  return fetchJson<ApiResponse<ResultadoPesajeIADto>>(
+    '/pesajes/confirmar-ia',
+    {
+      method: 'POST',
+      body: formData
+    }
+  );
 };
 
-// ─────────────────────────────────────────────
-// FINCAS
-// ─────────────────────────────────────────────
+/* =========================
+   FINCAS
+========================= */
 
 export const getFincas = () =>
   fetchJson<ApiResponse<FincaDto[]>>(
     '/fincas'
   );
 
-export const getFinca = (id: number) =>
+export const getFinca = (
+  id: number
+) =>
   fetchJson<ApiResponse<FincaDto>>(
     `/fincas/${id}`
   );
@@ -447,11 +562,7 @@ export const getFincasByUsuario = (
   );
 
 export const crearFinca = (
-  data: {
-    nombre: string;
-    ubicacion: string;
-    user_id: number;
-  }
+  data: Partial<FincaDto>
 ) =>
   fetchJson<ApiResponse<FincaDto>>(
     '/fincas',
@@ -473,24 +584,28 @@ export const actualizarFinca = (
     }
   );
 
-export const eliminarFinca = (id: number) =>
-  fetchJson<ApiResponse<void>>(
+export const eliminarFinca = (
+  id: number
+) =>
+  fetchJson<ApiResponse<null>>(
     `/fincas/${id}`,
     {
       method: 'DELETE'
     }
   );
 
-// ─────────────────────────────────────────────
-// REPORTES
-// ─────────────────────────────────────────────
+/* =========================
+   REPORTES
+========================= */
 
 export const getReportes = () =>
   fetchJson<ApiResponse<ReporteDto[]>>(
     '/reportes'
   );
 
-export const getReporte = (id: number) =>
+export const getReporte = (
+  id: number
+) =>
   fetchJson<ApiResponse<ReporteDto>>(
     `/reportes/${id}`
   );
@@ -503,7 +618,7 @@ export const getReportesByUsuario = (
   );
 
 export const crearReporte = (
-  data: Partial<ReporteDto>
+  data: CrearReporteDto
 ) =>
   fetchJson<ApiResponse<ReporteDto>>(
     '/reportes',
@@ -513,18 +628,19 @@ export const crearReporte = (
     }
   );
 
-// ─────────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────────
+/* =========================
+   HELPERS
+========================= */
 
 export function pesoNumerico(
   pesaje: PesajeDto
 ): number {
-  return Number(
+  const valor =
     pesaje.peso_real ??
     pesaje.peso_estimado ??
-    0
-  );
+    0;
+
+  return Number(valor) || 0;
 }
 
 export function formatFecha(
@@ -565,21 +681,31 @@ export function calcularEdad(
 
   const hoy = new Date();
 
-  let edad =
-    hoy.getFullYear() - nacimiento.getFullYear();
+  let meses =
+    (hoy.getFullYear() - nacimiento.getFullYear()) * 12 +
+    (hoy.getMonth() - nacimiento.getMonth());
 
-  const mes =
-    hoy.getMonth() - nacimiento.getMonth();
-
-  if (
-    mes < 0 ||
-    (
-      mes === 0 &&
-      hoy.getDate() < nacimiento.getDate()
-    )
-  ) {
-    edad--;
+  if (hoy.getDate() < nacimiento.getDate()) {
+    meses--;
   }
 
-  return `${edad} año(s)`;
+  if (meses < 0) {
+    return '---';
+  }
+
+  if (meses < 12) {
+    return `${meses} mes${meses === 1 ? '' : 'es'}`;
+  }
+
+  const años =
+    Math.floor(meses / 12);
+
+  const mesesRestantes =
+    meses % 12;
+
+  if (mesesRestantes === 0) {
+    return `${años} año${años === 1 ? '' : 's'}`;
+  }
+
+  return `${años} año${años === 1 ? '' : 's'} ${mesesRestantes} mes${mesesRestantes === 1 ? '' : 'es'}`;
 }

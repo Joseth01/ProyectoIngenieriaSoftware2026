@@ -62,6 +62,8 @@ Route::prefix('imagenes')->group(function () {
 // RUTAS DE ANIMALES
 Route::prefix('animales')->group(function () {
 
+    Route::get('/razas', [AnimalController::class, 'razas']);
+    
     Route::post('/', [AnimalController::class, 'crear']);
     Route::get('/', [AnimalController::class, 'listar']);
     Route::get('/arete/{arete}', [AnimalController::class, 'buscarPorArete']);

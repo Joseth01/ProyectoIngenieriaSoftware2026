@@ -17,6 +17,9 @@ use App\Services\ServicioIA;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Throwable;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use App\Models\Imagen;
 
 class PesajeController extends Controller
 {
@@ -239,10 +242,61 @@ class PesajeController extends Controller
                           || str_contains($error->getMessage(), 'animal');
 
             return ApiResponse::error(
-                $error->getMessage(),
+                'No se recibió una imagen válida.',
                 [],
                 $esErrorImagen ? 422 : 500
             );
         }
+
+        return DB::transaction(function () use ($imagen, $datos) {
+
+            $resultadoIA = $this->servicioIA->analizarImagen($imagen);
+
+            $fecha = $datos['fecha'] ?? now()->toDateString();
+
+            $pesaje = Pesaje::create([
+                'animal_id' => $datos['animal_id'],
+                'peso_estimado' => $resultadoIA['peso_estimado'],
+                'peso_real' => null,
+                'fecha' => $fecha,
+                'fuente_id' => $datos['fuente_id'] ?? 1,
+            ]);
+
+            $rutaImagen = $imagen->store(
+                'pesajes',
+                'public'
+            );
+
+            $registroImagen = Imagen::create([
+                'pesaje_id' => $pesaje->id,
+                'url' => Storage::url($rutaImagen),
+                'procesada' => true,
+                'fecha' => $fecha,
+            ]);
+
+            $pesaje->load([
+                'animal.raza',
+                'animal.finca',
+                'fuente'
+            ]);
+
+            return ApiResponse::success(
+                'Peso estimado y pesaje guardado correctamente',
+                [
+                    'estimacion' => $resultadoIA,
+                    'pesaje' => $pesaje,
+                    'imagen' => $registroImagen,
+                ],
+                201
+            );
+        });
+
+    } catch (Throwable $error) {
+        return ApiResponse::error(
+            $error->getMessage(),
+            [],
+            500
+        );
     }
+}
 }
