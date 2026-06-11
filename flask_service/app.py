@@ -18,7 +18,6 @@ Response 422:
 
 import io
 import os
-import urllib.request
 
 import numpy as np
 import onnxruntime as ort
@@ -27,8 +26,7 @@ from PIL import Image
 
 app = Flask(__name__)
 
-MODEL_PATH = os.environ.get("MODEL_PATH", "yolov8n.onnx")
-MODEL_URL  = "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n.onnx"
+MODEL_PATH   = os.environ.get("MODEL_PATH", "yolov8n.onnx")
 COCO_COW_CLS = 19
 MIN_CONF     = 0.40
 INPUT_SIZE   = 640
@@ -36,22 +34,14 @@ INPUT_SIZE   = 640
 _session = None
 
 
-def ensure_model() -> None:
-    """Descarga el modelo ONNX si no existe localmente."""
-    if not os.path.exists(MODEL_PATH):
-        print(f"[BovWeight] Modelo no encontrado en '{MODEL_PATH}'. Descargando...", flush=True)
-        try:
-            urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
-            print(f"[BovWeight] Modelo descargado correctamente: {MODEL_PATH}", flush=True)
-        except Exception as exc:
-            print(f"[BovWeight] ERROR descargando modelo: {exc}", flush=True)
-            raise RuntimeError(f"No se pudo descargar el modelo ONNX: {exc}") from exc
-
-
 def get_session() -> ort.InferenceSession:
     global _session
     if _session is None:
-        ensure_model()
+        if not os.path.exists(MODEL_PATH):
+            raise RuntimeError(
+                f"Modelo ONNX no encontrado en '{MODEL_PATH}'. "
+                "Verifica que el build ejecutó export_model.py correctamente."
+            )
         print(f"[BovWeight] Cargando sesión ONNX desde '{MODEL_PATH}'...", flush=True)
         _session = ort.InferenceSession(
             MODEL_PATH,
@@ -61,11 +51,8 @@ def get_session() -> ort.InferenceSession:
     return _session
 
 
-# Pre-cargar el modelo al iniciar el worker para detectar errores temprano
-try:
-    get_session()
-except Exception as _startup_err:
-    print(f"[BovWeight] ADVERTENCIA: no se pudo pre-cargar el modelo: {_startup_err}", flush=True)
+print(f"[BovWeight] Iniciando. Modelo esperado en: {os.path.abspath(MODEL_PATH)}", flush=True)
+print(f"[BovWeight] Modelo existe: {os.path.exists(MODEL_PATH)}", flush=True)
 
 
 def preprocess(img: Image.Image) -> np.ndarray:
