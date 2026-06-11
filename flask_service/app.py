@@ -55,6 +55,14 @@ print(f"[BovWeight] Iniciando. Modelo esperado en: {os.path.abspath(MODEL_PATH)}
 print(f"[BovWeight] Modelo existe: {os.path.exists(MODEL_PATH)}", flush=True)
 
 
+@app.errorhandler(Exception)
+def manejar_error_global(e):
+    """Cualquier excepción no capturada se devuelve como JSON, nunca como HTML."""
+    import traceback
+    traceback.print_exc()
+    return jsonify({"error": f"Error interno: {e}"}), 500
+
+
 def preprocess(img: Image.Image) -> np.ndarray:
     """Redimensiona y normaliza la imagen para YOLOv8."""
     img_rgb = img.convert("RGB").resize((INPUT_SIZE, INPUT_SIZE))
@@ -109,10 +117,11 @@ def postprocess(output: np.ndarray, orig_w: int, orig_h: int) -> list:
             continue
 
         cx, cy, w, h = boxes[i]
-        x1 = (cx - w / 2) * sx
-        y1 = (cy - h / 2) * sy
-        x2 = (cx + w / 2) * sx
-        y2 = (cy + h / 2) * sy
+        # Cast a float nativo: los np.float32 no son serializables por jsonify
+        x1 = float((cx - w / 2) * sx)
+        y1 = float((cy - h / 2) * sy)
+        x2 = float((cx + w / 2) * sx)
+        y2 = float((cy + h / 2) * sy)
 
         detections.append({
             "conf": conf,
