@@ -58,12 +58,14 @@ class ServicioIA
         }
 
         if (!$respuesta->successful()) {
+            $cuerpo  = $respuesta->json();
+            $detalle = $cuerpo['error'] ?? $respuesta->body();
             Log::error('[ServicioIA] Error del microservicio Flask', [
                 'status' => $respuesta->status(),
                 'body'   => $respuesta->body(),
             ]);
             throw new \RuntimeException(
-                'El servicio de IA no respondió correctamente (HTTP ' . $respuesta->status() . ').'
+                'Error IA (HTTP ' . $respuesta->status() . '): ' . $detalle
             );
         }
 
