@@ -610,13 +610,6 @@ const crearAnimal = async () => {
 };
 
 // ── Guardar pesaje ─────────────────────────────────────────────────────────
-const guardar = async () => {
-  if (!animalSel.value) { errorMsg.value = 'Selecciona un animal.'; return; }
-  if (!peso.value || peso.value <= 0) { errorMsg.value = 'Ingresa un peso válido.'; return; }
-  errorMsg.value = '';
-
-}
-
 async function guardar() {
 
   if (!animalSel.value) {
