@@ -21,7 +21,7 @@
             <div class="avatar-badge">✓</div>
           </div>
           <div class="profile-name">{{ user.name }}</div>
-          <div class="profile-role">Propietario Principal · Hacienda Las Palmas</div>
+          <div class="profile-role">{{ user.email }}</div>
           <div class="profile-stats">
             <div class="ps-card">
               <div class="ps-ico">🐄</div>
@@ -259,33 +259,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { IonPage, IonContent, IonModal, toastController } from '@ionic/vue';
+import { getFincasByUsuario, getFincas, getAnimales, FincaDto } from '@/services/api';
 
-import { onMounted } from 'vue';
-import { getPerfilCompleto } from '@/services/api';
+interface FincaLocal { nombre: string; cabezas: number; ubicacion?: string | null; }
 
-onMounted(async () => {
-  try {
-    const response = await getPerfilCompleto();
-
-    console.log('PERFIL COMPLETO:', response);
-  } catch (error) {
-    console.error('ERROR PERFIL:', error);
-  }
-});
-
-interface FincaLocal { nombre: string; cabezas: number; }
-
-const router   = useRouter();
-const vista    = ref<'menu'|'personal'|'hacienda'|'finca-detalle'>('menu');
-const editando = ref(false);
-const notifOn  = ref(true);
+const router       = useRouter();
+const vista        = ref<'menu'|'personal'|'hacienda'|'finca-detalle'>('menu');
+const editando     = ref(false);
+const notifOn      = ref(true);
 const mostrarModal = ref(false);
-const fincaSel = ref<FincaLocal | null>(null);
+const fincaSel     = ref<FincaLocal | null>(null);
 
-// User data from localStorage
 const rawUser = JSON.parse(localStorage.getItem('user') || '{}');
 const user = ref({ name: rawUser.name || 'Usuario', email: rawUser.email || '', phone: '' });
 
@@ -293,14 +280,40 @@ const iniciales = computed(() =>
   user.value.name.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase() || 'U'
 );
 
-// Fincas (mock local hasta tener API de fincas integrada con user_id)
-const fincas = ref<FincaLocal[]>([
-  { nombre: 'Finca El Progreso', cabezas: 124 },
-  { nombre: 'Finca Los Olivos',  cabezas: 85  },
-]);
-const totalCabezas = computed(() => fincas.value.reduce((s, f) => s + f.cabezas, 0));
+// Fincas y cabezas desde API
+const fincas       = ref<FincaLocal[]>([]);
+const totalCabezas = ref(0);
 
 const nuevaFinca = ref<FincaLocal>({ nombre: '', cabezas: 0 });
+
+onMounted(async () => {
+  try {
+    const [fincasRaw, animalesRaw] = await Promise.all([
+      getFincas(),
+      getAnimales(),
+    ]);
+
+    const todasFincas = Array.isArray(fincasRaw) ? fincasRaw : (fincasRaw as any).datos ?? [];
+    const todosAnimales = Array.isArray(animalesRaw) ? animalesRaw : (animalesRaw as any).datos ?? [];
+
+    // Filtrar solo las fincas del usuario logueado
+    const userId = rawUser.id;
+    const fincasData = userId
+      ? todasFincas.filter((f: FincaDto) => f.user_id === userId)
+      : todasFincas;
+
+    fincas.value = fincasData.map((f: FincaDto) => ({
+      nombre:    f.nombre,
+      ubicacion: f.ubicacion,
+      cabezas:   todosAnimales.filter((a: any) => a.finca_id === f.id).length,
+    }));
+
+    totalCabezas.value = fincas.value.reduce((s: number, f: FincaLocal) => s + f.cabezas, 0);
+
+  } catch (e) {
+    console.error('Error cargando perfil:', e);
+  }
+});
 
 const vincularFinca = async () => {
   if (!nuevaFinca.value.nombre) {
@@ -315,7 +328,7 @@ const vincularFinca = async () => {
 };
 
 const guardarCambios = async () => {
-  localStorage.setItem('user', JSON.stringify({ name: user.value.name, email: user.value.email }));
+  localStorage.setItem('user', JSON.stringify({ ...rawUser, name: user.value.name, email: user.value.email }));
   editando.value = false;
   const t = await toastController.create({ message: 'Perfil actualizado correctamente.', duration: 2000, color: 'success' });
   await t.present();
