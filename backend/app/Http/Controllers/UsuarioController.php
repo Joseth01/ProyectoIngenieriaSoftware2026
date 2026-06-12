@@ -101,4 +101,23 @@ class UsuarioController extends Controller
     );
 
     }
+    public function actualizarPerfil(Request $request): JsonResponse
+{
+    $usuario = $request->user();
+
+    $datos = $request->validate([
+        'name'  => 'required|string|max:255',
+        'email' => 'required|email|unique:users,email,' . $usuario->id,
+    ]);
+
+    $usuario->update([
+        'name'  => $datos['name'],
+        'email' => $datos['email'],
+    ]);
+
+    return ApiResponse::success(
+        'Perfil actualizado correctamente',
+        $usuario->fresh()
+    );
+}
 }

@@ -245,7 +245,7 @@ async function fetchJson<T>(
 
 export const loginUsuario = async (
   data: LoginDto
-) => {
+): Promise<UsuarioDto> => {
   const payload = {
     email: data.email?.trim(),
     password: data.password
@@ -268,11 +268,12 @@ export const loginUsuario = async (
     response.datos.usuario
   );
 
-  return response;
+  return response.datos.usuario;
 };
+
 export const registrarUsuario = async (
   data: RegistroDto
-) => {
+): Promise<UsuarioDto> => {
   const response =
     await fetchJson<ApiResponse<{
       token: string;
@@ -290,12 +291,25 @@ export const registrarUsuario = async (
     response.datos.usuario
   );
 
-  return response;
+  return response.datos.usuario;
 };
 
 export const getPerfil = () =>
   fetchJson<ApiResponse<UsuarioDto>>(
     '/usuarios/perfil'
+  );
+  export const actualizarPerfil = (
+  data: {
+    name: string;
+    email: string;
+  }
+) =>
+  fetchJson<ApiResponse<UsuarioDto>>(
+    '/usuarios/perfil',
+    {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }
   );
 
 export const getPerfilCompleto = () =>

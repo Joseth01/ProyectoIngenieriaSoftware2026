@@ -88,7 +88,7 @@ Route::prefix('animales')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/perfil', [UsuarioController::class, 'perfil']);
-
+        Route::put('/perfil', [UsuarioController::class, 'actualizarPerfil']);
         Route::post('/logout', [UsuarioController::class, 'logout']);
         Route::get('/perfil-completo', [UsuarioController::class, 'perfilCompleto']);
     });

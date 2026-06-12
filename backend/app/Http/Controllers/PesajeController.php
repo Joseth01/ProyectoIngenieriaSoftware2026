@@ -16,7 +16,6 @@ use App\Services\EstimadorPesoService;
 use App\Services\ServicioIA;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Throwable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -24,6 +23,13 @@ use App\Models\Imagen;
 
 class PesajeController extends Controller
 {
+    private const PESO_MINIMO_KG = 50;
+    private const PESO_MAXIMO_KG = 1200;
+
+    private const FUENTE_IA = 1;
+    private const FUENTE_BASCULA = 2;
+    private const FUENTE_MANUAL = 3;
+
     public function __construct(
         private readonly ServicioIA $servicioIA
     ) {}
@@ -68,8 +74,19 @@ class PesajeController extends Controller
             'fecha' => 'required|date',
             'fuente_id' => 'nullable|exists:fuentes_pesaje,id',
 
-            'peso_estimado' => 'nullable|numeric|min:0',
-            'peso_real' => 'nullable|numeric|min:0',
+            'peso_estimado' => [
+                'nullable',
+                'numeric',
+                'min:' . self::PESO_MINIMO_KG,
+                'max:' . self::PESO_MAXIMO_KG,
+            ],
+
+            'peso_real' => [
+                'nullable',
+                'numeric',
+                'min:' . self::PESO_MINIMO_KG,
+                'max:' . self::PESO_MAXIMO_KG,
+            ],
 
             'metodo_estimacion' => 'nullable|in:yolov8,regresion,tabla',
 
@@ -78,6 +95,14 @@ class PesajeController extends Controller
             'largo_corporal_cm' => 'nullable|numeric',
             'perimetro_toracico_cm' => 'nullable|numeric',
             'peso_referencia' => 'nullable|numeric',
+        ], [
+            'peso_estimado.numeric' => 'El peso registrado debe ser un número válido.',
+            'peso_estimado.min' => 'El peso registrado debe ser mayor o igual a 50 kg.',
+            'peso_estimado.max' => 'El peso registrado no puede superar los 1200 kg.',
+
+            'peso_real.numeric' => 'El peso real debe ser un número válido.',
+            'peso_real.min' => 'El peso real debe ser mayor o igual a 50 kg.',
+            'peso_real.max' => 'El peso real no puede superar los 1200 kg.',
         ]);
 
         $resultadoEstimacion = null;
@@ -96,15 +121,46 @@ class PesajeController extends Controller
             $estimador = new EstimadorPesoService($algoritmo);
             $resultadoEstimacion = $estimador->estimar($datos);
 
-            $pesoEstimado = $resultadoEstimacion->pesoKg;
+            $pesoEstimado = (float) $resultadoEstimacion->pesoKg;
         }
+
+        if (
+            $pesoEstimado < self::PESO_MINIMO_KG ||
+            $pesoEstimado > self::PESO_MAXIMO_KG
+        ) {
+            return ApiResponse::error(
+                'El peso registrado debe estar entre 50 kg y 1200 kg.',
+                [],
+                422
+            );
+        }
+
+        $pesoReal = isset($datos['peso_real'])
+            ? (float) $datos['peso_real']
+            : null;
+
+        if (
+            $pesoReal !== null &&
+            (
+                $pesoReal < self::PESO_MINIMO_KG ||
+                $pesoReal > self::PESO_MAXIMO_KG
+            )
+        ) {
+            return ApiResponse::error(
+                'El peso real debe estar entre 50 kg y 1200 kg.',
+                [],
+                422
+            );
+        }
+
+        $fuenteId = $datos['fuente_id'] ?? self::FUENTE_MANUAL;
 
         $pesaje = new Pesaje([
             'animal_id' => $datos['animal_id'],
             'peso_estimado' => $pesoEstimado,
-            'peso_real' => $datos['peso_real'] ?? null,
+            'peso_real' => $pesoReal,
             'fecha' => $datos['fecha'],
-            'fuente_id' => $datos['fuente_id'] ?? null,
+            'fuente_id' => $fuenteId,
         ]);
 
         $subject = new PesajeSubject();
@@ -171,11 +227,36 @@ class PesajeController extends Controller
         }
 
         $datos = $request->validate([
-            'peso_estimado' => 'required|numeric|min:0',
-            'peso_real' => 'nullable|numeric|min:0',
+            'peso_estimado' => [
+                'required',
+                'numeric',
+                'min:' . self::PESO_MINIMO_KG,
+                'max:' . self::PESO_MAXIMO_KG,
+            ],
+
+            'peso_real' => [
+                'nullable',
+                'numeric',
+                'min:' . self::PESO_MINIMO_KG,
+                'max:' . self::PESO_MAXIMO_KG,
+            ],
+
             'fecha' => 'required|date',
             'fuente_id' => 'nullable|exists:fuentes_pesaje,id',
+        ], [
+            'peso_estimado.required' => 'El peso registrado es obligatorio.',
+            'peso_estimado.numeric' => 'El peso registrado debe ser un número válido.',
+            'peso_estimado.min' => 'El peso registrado debe ser mayor o igual a 50 kg.',
+            'peso_estimado.max' => 'El peso registrado no puede superar los 1200 kg.',
+
+            'peso_real.numeric' => 'El peso real debe ser un número válido.',
+            'peso_real.min' => 'El peso real debe ser mayor o igual a 50 kg.',
+            'peso_real.max' => 'El peso real no puede superar los 1200 kg.',
         ]);
+
+        $datos['fuente_id'] = $datos['fuente_id']
+            ?? $pesaje->fuente_id
+            ?? self::FUENTE_MANUAL;
 
         $pesaje->update($datos);
 
@@ -212,20 +293,18 @@ class PesajeController extends Controller
 
     public function estimarPeso(Request $request): JsonResponse
     {
-        // El microservicio en Render puede tardar hasta 60 s en despertar (free tier).
-        // Aumentamos el límite de ejecución solo para este endpoint.
         set_time_limit(120);
 
         $request->validate([
-            'imagen'      => 'required|image|max:10240',
-            'raza'        => 'nullable|string|max:50',
-            'edad_meses'  => 'nullable|integer|min:0',
+            'imagen' => 'required|image|max:10240',
+            'raza' => 'nullable|string|max:50',
+            'edad_meses' => 'nullable|integer|min:0',
         ]);
 
         try {
             $rutaRelativa = $request->file('imagen')->store('pesajes');
-            $raza         = $request->input('raza', 'brahman');
-            $edadMeses    = (int) $request->input('edad_meses', 0);
+            $raza = $request->input('raza', 'brahman');
+            $edadMeses = (int) $request->input('edad_meses', 0);
 
             $resultado = $this->servicioIA->analizarImagen(
                 $rutaRelativa,
@@ -233,21 +312,25 @@ class PesajeController extends Controller
                 $edadMeses
             );
 
-            return ApiResponse::success('Peso estimado correctamente', $resultado);
+            return ApiResponse::success(
+                'Peso estimado correctamente',
+                $resultado
+            );
 
         } catch (\Throwable $error) {
             $mensaje = $error->getMessage();
 
-            // Distinguir errores de validación de imagen (422) de errores del servidor (500)
             $esErrorImagen = str_contains($mensaje, 'bovino')
-                          || str_contains($mensaje, 'imagen')
-                          || str_contains($mensaje, 'IA')
-                          || str_contains($mensaje, 'animal')
-                          || str_contains($mensaje, 'válida')
-                          || str_contains($mensaje, 'detectado')
-                          || str_contains($mensaje, 'peso');
+                || str_contains($mensaje, 'imagen')
+                || str_contains($mensaje, 'IA')
+                || str_contains($mensaje, 'animal')
+                || str_contains($mensaje, 'válida')
+                || str_contains($mensaje, 'detectado')
+                || str_contains($mensaje, 'peso');
 
-            Log::warning('[estimarPeso] Error al analizar imagen', ['error' => $mensaje]);
+            Log::warning('[estimarPeso] Error al analizar imagen', [
+                'error' => $mensaje
+            ]);
 
             return ApiResponse::error(
                 $mensaje ?: 'No se pudo procesar la imagen.',
@@ -260,38 +343,65 @@ class PesajeController extends Controller
     public function confirmarIA(Request $request): JsonResponse
     {
         $request->validate([
-            'animal_id'     => 'required|integer|exists:animales,id',
-            'peso_estimado' => 'required|numeric|min:1',
-            'peso_real'     => 'nullable|numeric|min:1',
-            'fecha'         => 'required|date',
-            'imagen'        => 'nullable|image|max:10240',
-            'fuente_id'     => 'nullable|integer|exists:fuentes_pesaje,id',
+            'animal_id' => 'required|integer|exists:animales,id',
+
+            'peso_estimado' => [
+                'required',
+                'numeric',
+                'min:' . self::PESO_MINIMO_KG,
+                'max:' . self::PESO_MAXIMO_KG,
+            ],
+
+            'peso_real' => [
+                'nullable',
+                'numeric',
+                'min:' . self::PESO_MINIMO_KG,
+                'max:' . self::PESO_MAXIMO_KG,
+            ],
+
+            'fecha' => 'required|date',
+            'imagen' => 'nullable|image|max:10240',
+            'fuente_id' => 'nullable|integer|exists:fuentes_pesaje,id',
+        ], [
+            'peso_estimado.required' => 'El peso estimado es obligatorio.',
+            'peso_estimado.numeric' => 'El peso estimado debe ser un número válido.',
+            'peso_estimado.min' => 'El peso estimado debe ser mayor o igual a 50 kg.',
+            'peso_estimado.max' => 'El peso estimado no puede superar los 1200 kg.',
+
+            'peso_real.numeric' => 'El peso real debe ser un número válido.',
+            'peso_real.min' => 'El peso real debe ser mayor o igual a 50 kg.',
+            'peso_real.max' => 'El peso real no puede superar los 1200 kg.',
         ]);
 
         try {
             return DB::transaction(function () use ($request) {
 
                 $pesaje = Pesaje::create([
-                    'animal_id'     => $request->integer('animal_id'),
+                    'animal_id' => $request->integer('animal_id'),
                     'peso_estimado' => $request->input('peso_estimado'),
-                    'peso_real'     => $request->input('peso_real'),
-                    'fecha'         => $request->input('fecha'),
-                    'fuente_id'     => $request->input('fuente_id', 2),
+                    'peso_real' => $request->input('peso_real'),
+                    'fecha' => $request->input('fecha'),
+                    'fuente_id' => $request->input('fuente_id', self::FUENTE_IA),
                 ]);
 
                 $registroImagen = null;
 
                 if ($request->hasFile('imagen')) {
                     $rutaImagen = $request->file('imagen')->store('pesajes', 'public');
+
                     $registroImagen = Imagen::create([
                         'pesaje_id' => $pesaje->id,
-                        'url'       => Storage::url($rutaImagen),
+                        'url' => Storage::url($rutaImagen),
                         'procesada' => true,
-                        'fecha'     => $request->input('fecha'),
+                        'fecha' => $request->input('fecha'),
                     ]);
                 }
 
-                $pesaje->load(['animal.raza', 'animal.finca', 'fuente']);
+                $pesaje->load([
+                    'animal.raza',
+                    'animal.finca',
+                    'fuente'
+                ]);
 
                 return ApiResponse::success(
                     'Pesaje guardado correctamente',
@@ -304,7 +414,11 @@ class PesajeController extends Controller
             });
 
         } catch (\Throwable $e) {
-            return ApiResponse::error($e->getMessage(), [], 500);
+            return ApiResponse::error(
+                $e->getMessage(),
+                [],
+                500
+            );
         }
     }
 }
