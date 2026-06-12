@@ -2,7 +2,6 @@
   <ion-page>
     <ion-content :fullscreen="true" class="vivo-bg">
 
-      <!-- APP BAR -->
       <div class="app-bar">
         <button class="back-btn" @click="router.back()">‹</button>
 
@@ -11,15 +10,14 @@
           <div class="page-sub">Estimación inteligente de peso</div>
         </div>
 
-        <div class="ai-badge">🤖 IA</div>
+        <div class="ai-badge">IA</div>
       </div>
 
       <div class="body-pad">
 
-        <!-- ANIMAL SELECTOR -->
         <div class="animal-card" @click="mostrarSelector = true">
           <div class="anim-emo">
-            {{ animalSel ? '🐄' : '➕' }}
+            {{ animalSel ? 'AN' : '+' }}
           </div>
 
           <div class="anim-info">
@@ -35,7 +33,6 @@
           <span class="chev">›</span>
         </div>
 
-        <!-- VIEWFINDER -->
         <div class="viewfinder-wrap">
           <div class="viewfinder">
 
@@ -55,7 +52,7 @@
               </div>
 
               <div v-if="!imagenPreview" class="vf-hint">
-                <span class="vf-ico">📷</span>
+                <span class="vf-ico">IMG</span>
                 <span>Selecciona una foto o toma una captura</span>
               </div>
 
@@ -82,7 +79,7 @@
               </div>
 
               <div class="result-chip">
-                ✓ Estimación generada
+                Estimación generada
               </div>
             </div>
 
@@ -94,7 +91,6 @@
           </div>
         </div>
 
-        <!-- ACCIONES DE IMAGEN -->
         <div v-if="estado !== 'resultado'" class="image-actions">
 
           <button
@@ -102,7 +98,7 @@
             :disabled="estado === 'analizando'"
             @click="tomarFoto"
           >
-            📷 Tomar foto
+            Tomar foto
           </button>
 
           <button
@@ -110,7 +106,7 @@
             :disabled="estado === 'analizando'"
             @click="cargarGaleria"
           >
-            🖼️ Galería
+            Galería
           </button>
 
         </div>
@@ -123,7 +119,6 @@
           @change="cargarImagenDesdeInput"
         />
 
-        <!-- BOTÓN ANALIZAR -->
         <div v-if="estado !== 'resultado'" class="shutter-area">
 
           <div class="shutter-hint">
@@ -138,13 +133,12 @@
           >
             <div class="shutter-inner">
               <span v-if="estado === 'analizando'" class="shutter-spinner"></span>
-              <span v-else>🤖</span>
+              <span v-else>IA</span>
             </div>
           </button>
 
         </div>
 
-        <!-- RESULTADO -->
         <Transition name="slide-up">
           <div v-if="estado === 'resultado'" class="result-card">
 
@@ -188,11 +182,10 @@
           </div>
         </Transition>
 
-        <!-- BOTONES RESULTADO -->
         <div v-if="estado === 'resultado'" class="action-area">
 
           <button class="btn-retry" @click="reiniciar">
-            🔄 Nueva imagen
+            Nueva imagen
           </button>
 
           <button
@@ -205,7 +198,6 @@
 
         </div>
 
-        <!-- FEEDBACK -->
         <div
           v-if="feedbackMsg"
           class="feedback"
@@ -214,7 +206,6 @@
           {{ feedbackMsg }}
         </div>
 
-        <!-- INFO -->
         <div class="info-section">
           <div class="sec-title">¿Cómo funciona?</div>
 
@@ -252,7 +243,6 @@
 
       </div>
 
-      <!-- MODAL SELECTOR ANIMAL -->
       <ion-modal
         :is-open="mostrarSelector"
         @didDismiss="cerrarSelector"
@@ -260,7 +250,7 @@
         <ion-content class="vivo-bg">
 
           <div class="app-bar">
-            <button class="back-btn" @click="cerrarSelector">✕</button>
+            <button class="back-btn" @click="cerrarSelector">×</button>
 
             <div class="app-bar-center">
               <div class="page-title small-title">Seleccionar animal</div>
@@ -274,21 +264,21 @@
           <div class="body-pad">
 
             <div class="search-box">
-              <span>🔍</span>
+              <span>Buscar</span>
 
               <input
                 v-model="busqueda"
                 class="search-input"
-                placeholder="Buscar por nombre o arete…"
+                placeholder="Buscar por nombre o arete..."
               />
             </div>
 
             <button class="btn-create-animal" @click="abrirCrearAnimal">
-              ➕ Crear nuevo animal
+              Crear nuevo animal
             </button>
 
             <div v-if="loadingAnimales" class="status-loading">
-              Cargando animales…
+              Cargando animales...
             </div>
 
             <div
@@ -297,7 +287,7 @@
               class="animal-opt"
               @click="elegirAnimal(a)"
             >
-              <div class="anim-emo">🐄</div>
+              <div class="anim-emo">AN</div>
 
               <div class="opt-body">
                 <div class="opt-name">
@@ -309,7 +299,7 @@
                 </div>
 
                 <div class="opt-finca">
-                  🌾 {{ a.finca?.nombre || 'Sin finca' }}
+                  {{ a.finca?.nombre || 'Sin finca' }}
                 </div>
               </div>
             </div>
@@ -326,7 +316,6 @@
         </ion-content>
       </ion-modal>
 
-      <!-- MODAL CREAR ANIMAL -->
       <ion-modal
         :is-open="mostrarCrearAnimal"
         @didDismiss="cerrarCrearAnimal"
@@ -334,7 +323,7 @@
         <ion-content class="vivo-bg">
 
           <div class="app-bar">
-            <button class="back-btn" @click="cerrarCrearAnimal">✕</button>
+            <button class="back-btn" @click="cerrarCrearAnimal">×</button>
 
             <div class="app-bar-center">
               <div class="page-title small-title">Nuevo animal</div>
@@ -352,7 +341,7 @@
                 <label class="field-label">Número de arete</label>
 
                 <input
-                  v-model="nuevoAnimal.numero_arete"
+                  v-model.trim="nuevoAnimal.numero_arete"
                   class="field-input"
                   placeholder="Ej: CR005"
                 />
@@ -362,7 +351,7 @@
                 <label class="field-label">Nombre</label>
 
                 <input
-                  v-model="nuevoAnimal.nombre"
+                  v-model.trim="nuevoAnimal.nombre"
                   class="field-input"
                   placeholder="Ej: Aurora"
                 />
@@ -392,11 +381,29 @@
               <div class="field-group">
                 <label class="field-label">Fecha de nacimiento</label>
 
-                <input
-                  v-model="nuevoAnimal.fecha_nacimiento"
-                  class="field-input"
-                  type="date"
-                />
+                <div class="date-field-wrap">
+                  <input
+                    ref="fechaNacimientoInput"
+                    v-model="nuevoAnimal.fecha_nacimiento"
+                    class="field-input date-input-real"
+                    type="date"
+                    :max="hoy"
+                    @click="abrirCalendarioNacimiento"
+                    @focus="abrirCalendarioNacimiento"
+                  />
+
+                  <button
+                    type="button"
+                    class="date-picker-btn"
+                    @click="abrirCalendarioNacimiento"
+                  >
+                    Seleccionar
+                  </button>
+                </div>
+
+                <div class="field-help">
+                  Usa el calendario para seleccionar la fecha de nacimiento.
+                </div>
               </div>
 
               <div class="field-group">
@@ -441,7 +448,7 @@
                   :disabled="savingAnimal"
                   @click="guardarNuevoAnimal"
                 >
-                  <span v-if="savingAnimal">Guardando…</span>
+                  <span v-if="savingAnimal">Guardando...</span>
                   <span v-else>Guardar animal</span>
                 </button>
 
@@ -454,7 +461,6 @@
         </ion-content>
       </ion-modal>
 
-      <!-- MODAL CONFIRMAR PESO IA -->
       <ion-modal
         :is-open="mostrarConfirmacion"
         @didDismiss="cerrarConfirmacion"
@@ -462,7 +468,7 @@
         <ion-content class="vivo-bg">
 
           <div class="app-bar">
-            <button class="back-btn" @click="cerrarConfirmacion">✕</button>
+            <button class="back-btn" @click="cerrarConfirmacion">×</button>
 
             <div class="app-bar-center">
               <div class="page-title small-title">Confirmar pesaje</div>
@@ -540,7 +546,7 @@
                   :disabled="saving"
                   @click="guardar"
                 >
-                  <span v-if="saving">Guardando…</span>
+                  <span v-if="saving">Guardando...</span>
                   <span v-else>Guardar pesaje</span>
                 </button>
 
@@ -626,6 +632,9 @@ const imagenPreview = ref<string>('');
 const imagenBlob = ref<Blob | null>(null);
 
 const fileInput = ref<HTMLInputElement | null>(null);
+const fechaNacimientoInput = ref<HTMLInputElement | null>(null);
+
+const hoy = new Date().toISOString().slice(0, 10);
 
 const pesoEstimado = ref(0);
 const pesoManual = ref<number | null>(null);
@@ -635,14 +644,14 @@ const confianza = ref<number | null>(null);
 const cc = ref<string>('---');
 const alzada = ref<number | null>(null);
 
-const mensajeAnalisis = ref('Analizando imagen…');
+const mensajeAnalisis = ref('Analizando imagen...');
 let timerAnalisis: ReturnType<typeof setTimeout> | null = null;
 
 const nuevoAnimal = ref({
   numero_arete: '',
   nombre: '',
   raza_id: 0,
-  fecha_nacimiento: new Date().toISOString().slice(0, 10),
+  fecha_nacimiento: hoy,
   finca_id: 0
 });
 
@@ -698,6 +707,10 @@ const textoConfianza = computed(() => {
 
   return `${confianza.value}% confianza`;
 });
+
+function abrirCalendarioNacimiento() {
+  fechaNacimientoInput.value?.showPicker?.();
+}
 
 function nombreAnimal(animal: AnimalDto): string {
   return animal.nombre ||
@@ -806,6 +819,12 @@ async function guardarNuevoAnimal() {
     return;
   }
 
+  if (nuevoAnimal.value.fecha_nacimiento > hoy) {
+    errorCrearAnimal.value =
+      'La fecha de nacimiento no puede ser futura.';
+    return;
+  }
+
   if (!nuevoAnimal.value.finca_id) {
     errorCrearAnimal.value =
       'Selecciona una finca.';
@@ -836,7 +855,7 @@ async function guardarNuevoAnimal() {
       numero_arete: '',
       nombre: '',
       raza_id: razas.value[0]?.id || 0,
-      fecha_nacimiento: new Date().toISOString().slice(0, 10),
+      fecha_nacimiento: hoy,
       finca_id: fincas.value[0]?.id || 0
     };
 
@@ -844,7 +863,7 @@ async function guardarNuevoAnimal() {
     mostrarSelector.value = false;
 
     feedbackMsg.value =
-      '✓ Animal creado y seleccionado.';
+      'Animal creado y seleccionado.';
 
     feedbackOk.value = true;
 
@@ -952,19 +971,18 @@ async function analizarImagen() {
 
   estado.value = 'analizando';
   feedbackMsg.value = '';
-  mensajeAnalisis.value = 'Analizando imagen…';
+  mensajeAnalisis.value = 'Analizando imagen...';
 
-  // Si tarda más de 8 s (posible cold start en Render), avisamos al usuario
   timerAnalisis = setTimeout(() => {
-    mensajeAnalisis.value = 'Despertando servicio de IA… (puede tardar ~30 s la primera vez)';
+    mensajeAnalisis.value = 'Despertando servicio de IA... puede tardar unos segundos.';
   }, 8000);
 
   try {
     const response =
-  await estimarPesoPorImagen(
-    imagenBlob.value,
-    animalSel.value.id
-  );
+      await estimarPesoPorImagen(
+        imagenBlob.value,
+        animalSel.value.id
+      );
 
     const datos =
       response.datos;
@@ -1027,7 +1045,8 @@ async function analizarImagen() {
       clearTimeout(timerAnalisis);
       timerAnalisis = null;
     }
-    mensajeAnalisis.value = 'Analizando imagen…';
+
+    mensajeAnalisis.value = 'Analizando imagen...';
   }
 }
 
@@ -1101,11 +1120,11 @@ async function guardar() {
       animal_id: animalSel.value.id,
       peso_estimado: pesoEstimado.value,
       peso_real: pesoReal,
-      fecha: new Date().toISOString().slice(0, 10),
+      fecha: hoy,
     });
 
     feedbackMsg.value =
-      '✓ Pesaje e imagen guardados correctamente.';
+      'Pesaje e imagen guardados correctamente.';
 
     feedbackOk.value = true;
     mostrarConfirmacion.value = false;
@@ -1219,7 +1238,9 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: .8rem;
+  font-weight: 900;
+  color: #1E5631;
   flex-shrink: 0;
 }
 
@@ -1355,7 +1376,8 @@ onMounted(() => {
 }
 
 .vf-ico {
-  font-size: 2rem;
+  font-size: .9rem;
+  font-weight: 900;
   opacity: .75;
 }
 
@@ -1513,7 +1535,9 @@ onMounted(() => {
 }
 
 .shutter-inner {
-  font-size: 26px;
+  font-size: .85rem;
+  font-weight: 900;
+  color: #fff;
   line-height: 1;
 }
 
@@ -1760,6 +1784,13 @@ onMounted(() => {
   margin-bottom: 12px;
 }
 
+.search-box span {
+  font-size: .72rem;
+  color: #1E5631;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
 .search-input {
   flex: 1;
   border: none;
@@ -1825,6 +1856,8 @@ onMounted(() => {
   color: #111827;
   font-size: .9rem;
   outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
 }
 
 .field-input:focus {
@@ -1837,6 +1870,34 @@ onMounted(() => {
   font-size: .7rem;
   color: #6B7280;
   line-height: 1.35;
+}
+
+.date-field-wrap {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.date-input-real {
+  flex: 1;
+}
+
+.date-picker-btn {
+  height: 42px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 12px;
+  background: #1E5631;
+  color: #fff;
+  font-size: .75rem;
+  font-weight: 900;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.date-picker-btn:hover {
+  opacity: .94;
 }
 
 .confirm-ai-box {

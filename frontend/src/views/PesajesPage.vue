@@ -154,13 +154,26 @@
               Fecha de medición
             </label>
 
-            <input
-              v-model="fecha"
-              type="date"
-              class="field-input date-input"
-              :max="hoy"
-              @input="limpiarMensajes"
-            />
+            <div class="date-field-wrap">
+              <input
+                ref="fechaMedicionInput"
+                v-model="fecha"
+                type="date"
+                class="field-input date-input date-input-real"
+                :max="hoy"
+                @click="abrirCalendarioMedicion"
+                @focus="abrirCalendarioMedicion"
+                @input="limpiarMensajes"
+              />
+
+              <button
+                type="button"
+                class="date-picker-btn"
+                @click="abrirCalendarioMedicion"
+              >
+                Seleccionar
+              </button>
+            </div>
           </div>
         </div>
 
@@ -375,12 +388,29 @@
                   Fecha de nacimiento <span class="req">*</span>
                 </label>
 
-                <input
-                  v-model="nuevoFechaNacimiento"
-                  type="date"
-                  class="nf-input"
-                  :max="hoy"
-                />
+                <div class="date-field-wrap">
+                  <input
+                    ref="fechaNacimientoInput"
+                    v-model="nuevoFechaNacimiento"
+                    type="date"
+                    class="nf-input date-input-real"
+                    :max="hoy"
+                    @click="abrirCalendarioNacimiento"
+                    @focus="abrirCalendarioNacimiento"
+                  />
+
+                  <button
+                    type="button"
+                    class="date-picker-btn"
+                    @click="abrirCalendarioNacimiento"
+                  >
+                    Seleccionar
+                  </button>
+                </div>
+
+                <p class="nf-hint">
+                  Usa el calendario para evitar errores de formato.
+                </p>
               </div>
 
               <div class="nf-field">
@@ -408,7 +438,7 @@
 
                 <p v-if="fincas.length === 0" class="nf-hint">
                   No tienes fincas registradas.
-                  <a @click="cerrarModal(); router.push('/tabs/finca')" class="nf-link">
+                  <a @click="cerrarModal(); router.push('/tabs/perfil')" class="nf-link">
                     Crea una primero.
                   </a>
                 </p>
@@ -451,12 +481,25 @@
                   Fecha de ingreso
                 </label>
 
-                <input
-                  v-model="nuevoFechaIngreso"
-                  type="date"
-                  class="nf-input"
-                  :max="hoy"
-                />
+                <div class="date-field-wrap">
+                  <input
+                    ref="fechaIngresoInput"
+                    v-model="nuevoFechaIngreso"
+                    type="date"
+                    class="nf-input date-input-real"
+                    :max="hoy"
+                    @click="abrirCalendarioIngreso"
+                    @focus="abrirCalendarioIngreso"
+                  />
+
+                  <button
+                    type="button"
+                    class="date-picker-btn"
+                    @click="abrirCalendarioIngreso"
+                  >
+                    Seleccionar
+                  </button>
+                </div>
               </div>
 
               <div
@@ -561,6 +604,10 @@ const nuevoPesoIngreso = ref<number | null>(null);
 const nuevoFechaIngreso = ref(new Date().toISOString().slice(0, 10));
 const hoy = new Date().toISOString().slice(0, 10);
 
+const fechaNacimientoInput = ref<HTMLInputElement | null>(null);
+const fechaIngresoInput = ref<HTMLInputElement | null>(null);
+const fechaMedicionInput = ref<HTMLInputElement | null>(null);
+
 let userId: number | undefined;
 
 const animalesFiltrados = computed(() => {
@@ -620,6 +667,18 @@ const pesoIngresoTieneError = computed(() => {
 
   return !pesoEnRango(Number(nuevoPesoIngreso.value));
 });
+
+function abrirCalendarioNacimiento() {
+  fechaNacimientoInput.value?.showPicker?.();
+}
+
+function abrirCalendarioIngreso() {
+  fechaIngresoInput.value?.showPicker?.();
+}
+
+function abrirCalendarioMedicion() {
+  fechaMedicionInput.value?.showPicker?.();
+}
 
 function inicialDeTexto(valor: string): string {
   const limpio = valor.trim();
@@ -1565,5 +1624,33 @@ onMounted(async () => {
   font-weight: 800;
   color: #6B7280;
   pointer-events: none;
+}
+
+.date-field-wrap {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.date-input-real {
+  flex: 1;
+}
+
+.date-picker-btn {
+  height: 42px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 12px;
+  background: #1E5631;
+  color: #fff;
+  font-size: .75rem;
+  font-weight: 900;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.date-picker-btn:hover {
+  opacity: .94;
 }
 </style>
