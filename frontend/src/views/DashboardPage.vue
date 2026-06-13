@@ -2,7 +2,6 @@
   <ion-page>
     <ion-content :fullscreen="true" class="dash-content">
 
-      <!-- ── App bar ── -->
       <div class="app-bar">
         <div class="app-logo">
           <div class="logo-dot">🐄</div>
@@ -14,10 +13,8 @@
         </button>
       </div>
 
-      <!-- ── Hero ── -->
       <div class="hero">
         <div class="hero-row">
-
           <div>
             <div class="greet-sm">{{ saludoHora }},</div>
             <div class="greet-name">
@@ -47,14 +44,19 @@
             class="hm-sub"
             v-if="pesoPromedio > 0"
           >
-            Basado en últimas mediciones
+            Basado en últimas mediciones válidas
+          </div>
+
+          <div
+            class="hm-sub"
+            v-else
+          >
+            Registra pesajes para ver el promedio
           </div>
         </div>
       </div>
 
-      <!-- ── Floating stats ── -->
       <div class="float-stats">
-
         <div class="fs-card">
           <div
             class="fs-ico"
@@ -107,7 +109,6 @@
         </div>
       </div>
 
-      <!-- ── Loading / Error ── -->
       <div
         v-if="loading"
         class="status-box status-loading"
@@ -122,21 +123,16 @@
         {{ error }}
       </div>
 
-      <!-- ── Body ── -->
       <div class="body-pad">
-
-        <!-- Quick actions -->
         <div class="sec-title">
           Acciones rápidas
         </div>
 
-        <!-- IA -->
         <div
           class="ia-banner"
           @click="goTo('pesaje-vivo')"
         >
           <div class="ia-banner-left">
-
             <div class="ia-ico">
               🤖
             </div>
@@ -155,9 +151,7 @@
           <span class="ia-chev">›</span>
         </div>
 
-        <!-- Quick buttons -->
         <div class="qa-grid">
-
           <button
             class="qa-btn"
             @click="goTo('pesajes')"
@@ -208,7 +202,7 @@
 
           <button
             class="qa-btn"
-            @click="goTo('finca')"
+            @click="goTo('perfil')"
           >
             <div
               class="qa-ico"
@@ -218,15 +212,12 @@
             </div>
 
             <div class="qa-lbl">
-              Mi finca
+              Mis fincas
             </div>
           </button>
-
         </div>
 
-        <!-- Últimos pesajes -->
         <div class="sec-row">
-
           <div
             class="sec-title"
             style="margin-bottom:0"
@@ -255,13 +246,11 @@
           class="anim-row"
           @click="goTo('pesajes')"
         >
-
           <div class="anim-emo">
             🐄
           </div>
 
           <div class="anim-info">
-
             <div class="anim-name">
               {{ item.animal }}
             </div>
@@ -269,19 +258,14 @@
             <div class="anim-meta">
               {{ item.date }}
             </div>
-
           </div>
 
           <div class="anim-right">
-
             <div class="anim-w">
               {{ item.weight }} kg
             </div>
-
           </div>
-
         </div>
-
       </div>
 
     </ion-content>
@@ -292,14 +276,15 @@
 import {
   ref,
   computed,
-  onMounted
+  onMounted,
 } from 'vue';
 
 import { useRouter } from 'vue-router';
 
 import {
   IonPage,
-  IonContent
+  IonContent,
+  onIonViewWillEnter,
 } from '@ionic/vue';
 
 import {
@@ -308,12 +293,17 @@ import {
   getFincas,
   pesoNumerico,
   formatFecha,
-  AnimalDto,
-  PesajeDto,
-  FincaDto
+  type AnimalDto,
+  type PesajeDto,
+  type FincaDto,
 } from '@/services/api';
 
+const PESO_MINIMO = 50;
+const PESO_MAXIMO = 1200;
+
 const router = useRouter();
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
 const userName = ref('Usuario');
 
@@ -326,116 +316,228 @@ const error = ref('');
 
 const saludoHora = computed(() => {
   const h = new Date().getHours();
-  if (h < 12) return 'Buenos días';
-  if (h < 19) return 'Buenas tardes';
+
+  if (h < 12) {
+    return 'Buenos días';
+  }
+
+  if (h < 19) {
+    return 'Buenas tardes';
+  }
+
   return 'Buenas noches';
 });
 
 const userInitials = computed(() => {
   return userName.value
     .split(' ')
+    .filter(Boolean)
     .slice(0, 2)
     .map(w => w?.[0] || '')
     .join('')
     .toUpperCase() || 'U';
 });
 
-const pesoPromedio = computed(() => {
+const pesajesValidos = computed(() => {
+  return pesajes.value.filter((p) => {
+    const peso = pesoNumerico(p);
 
-  if (!pesajes.value.length) {
+    return Number.isFinite(peso) &&
+      peso >= PESO_MINIMO &&
+      peso <= PESO_MAXIMO;
+  });
+});
+
+const pesoPromedio = computed(() => {
+  if (!pesajesValidos.value.length) {
     return 0;
   }
 
-  const total = pesajes.value.reduce(
+  const total = pesajesValidos.value.reduce(
     (s, p) => s + pesoNumerico(p),
     0
   );
 
-  return total / pesajes.value.length;
+  return total / pesajesValidos.value.length;
 });
 
 const pesajesHoy = computed(() => {
-
   const hoy = new Date()
     .toISOString()
     .slice(0, 10);
 
-  return pesajes.value.filter(
+  return pesajesValidos.value.filter(
     p => p.fecha?.slice(0, 10) === hoy
   ).length;
 });
 
 const latestPesajes = computed(() => {
-
-  return [...pesajes.value]
-
-    .sort((a, b) =>
-      new Date(b.fecha || '').getTime() -
-      new Date(a.fecha || '').getTime()
-    )
-
+  return [...pesajesValidos.value]
+    .sort((a, b) => ordenarPesajesDesc(a, b))
     .slice(0, 4)
-
     .map(p => ({
       id: p.id,
-
       animal:
         p.animal?.nombre ||
         `Arete ${p.animal?.numero_arete || p.animal_id}`,
-
       weight: pesoNumerico(p).toFixed(0),
-
-      date: formatFecha(p.fecha)
+      date: formatFecha(p.fecha),
     }));
 });
 
-const goTo = (path: string) => {
-  router.push(`/tabs/${path}`);
-};
+function obtenerToken(): string | null {
+  return localStorage.getItem('token');
+}
 
-onMounted(async () => {
+function limpiarDatosLocalesSesion() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  localStorage.removeItem('perfil');
+  localStorage.removeItem('animalSel');
+  localStorage.removeItem('fincaSel');
+  localStorage.removeItem('pesajeSel');
+  sessionStorage.clear();
+}
 
-  const raw = localStorage.getItem('user');
+function cerrarSesionLocal() {
+  limpiarDatosLocalesSesion();
+  router.replace('/login');
+}
 
-  try {
+function fechaTiempoSeguro(valor: string | null | undefined): number {
+  if (!valor) {
+    return 0;
+  }
 
-    if (raw) {
+  const fecha = new Date(valor);
 
-      const user = JSON.parse(raw);
+  if (Number.isNaN(fecha.getTime())) {
+    return 0;
+  }
 
-      userName.value = user.name || 'Usuario';
-    }
+  return fecha.getTime();
+}
 
-  } catch {
+function ordenarPesajesAsc(a: PesajeDto, b: PesajeDto): number {
+  const fechaA = fechaTiempoSeguro(a.fecha);
+  const fechaB = fechaTiempoSeguro(b.fecha);
 
-    localStorage.removeItem('user');
+  if (fechaA !== fechaB) {
+    return fechaA - fechaB;
+  }
+
+  const creadoA = fechaTiempoSeguro((a as any).created_at);
+  const creadoB = fechaTiempoSeguro((b as any).created_at);
+
+  if (creadoA !== creadoB) {
+    return creadoA - creadoB;
+  }
+
+  return Number(a.id) - Number(b.id);
+}
+
+function ordenarPesajesDesc(a: PesajeDto, b: PesajeDto): number {
+  return ordenarPesajesAsc(b, a);
+}
+
+async function cargarPerfilUsuario() {
+  const token = obtenerToken();
+
+  if (!token) {
+    cerrarSesionLocal();
+    return;
   }
 
   try {
+    const response = await fetch(`${API_URL}/usuarios/perfil`, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await response.json();
+
+    if (response.status === 401) {
+      cerrarSesionLocal();
+      return;
+    }
+
+    if (!response.ok || !data.exito) {
+      throw new Error(data.mensaje || 'No se pudo cargar el usuario.');
+    }
+
+    const usuario = data.datos;
+
+    userName.value = usuario.name || 'Usuario';
+
+    localStorage.setItem('user', JSON.stringify({
+      id: usuario.id,
+      name: usuario.name,
+      email: usuario.email,
+      rol: usuario.rol,
+    }));
+  } catch (e) {
+    console.error(e);
+    userName.value = 'Usuario';
+  }
+}
+
+async function cargarDashboard() {
+  const token = obtenerToken();
+
+  if (!token) {
+    cerrarSesionLocal();
+    return;
+  }
+
+  loading.value = true;
+  error.value = '';
+
+  try {
+    await cargarPerfilUsuario();
 
     const [aData, pData, fData] = await Promise.all([
       getAnimales(),
       getPesajes(),
-      getFincas()
+      getFincas(),
     ]);
 
     animales.value = aData.datos || [];
-    pesajes.value = pData.datos || [];
+
+    pesajes.value = (pData.datos || [])
+      .sort((a, b) => ordenarPesajesDesc(a, b));
+
     fincas.value = fData.datos || [];
-
-  } catch (e) {
-
+  } catch (e: any) {
     console.error(e);
+
+    if (String(e?.message || '').includes('401')) {
+      cerrarSesionLocal();
+      return;
+    }
 
     error.value =
       'No se pudo conectar con el servidor. Verifica que el backend esté activo.';
-
   } finally {
-
     loading.value = false;
   }
+}
+
+function goTo(path: string) {
+  router.push(`/tabs/${path}`);
+}
+
+onMounted(() => {
+  cargarDashboard();
+});
+
+onIonViewWillEnter(() => {
+  cargarDashboard();
 });
 </script>
+
 <style scoped>
 .dash-content { --background: var(--bov-bg, #F2F5F3); }
 

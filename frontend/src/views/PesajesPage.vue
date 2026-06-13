@@ -154,13 +154,26 @@
               Fecha de medición
             </label>
 
-            <input
-              v-model="fecha"
-              type="date"
-              class="field-input date-input"
-              :max="hoy"
-              @input="limpiarMensajes"
-            />
+            <div class="date-field-wrap">
+              <input
+                ref="fechaMedicionInput"
+                v-model="fecha"
+                type="date"
+                class="field-input date-input date-input-real"
+                :max="hoy"
+                @click="abrirCalendarioMedicion"
+                @focus="abrirCalendarioMedicion"
+                @input="limpiarMensajes"
+              />
+
+              <button
+                type="button"
+                class="date-picker-btn"
+                @click="abrirCalendarioMedicion"
+              >
+                Seleccionar
+              </button>
+            </div>
           </div>
         </div>
 
@@ -168,7 +181,7 @@
           v-if="success"
           class="feedback success"
         >
-          Pesaje registrado correctamente.
+          Pesaje registrado correctamente. Puedes registrar otro pesaje.
         </div>
 
         <div
@@ -375,12 +388,29 @@
                   Fecha de nacimiento <span class="req">*</span>
                 </label>
 
-                <input
-                  v-model="nuevoFechaNacimiento"
-                  type="date"
-                  class="nf-input"
-                  :max="hoy"
-                />
+                <div class="date-field-wrap">
+                  <input
+                    ref="fechaNacimientoInput"
+                    v-model="nuevoFechaNacimiento"
+                    type="date"
+                    class="nf-input date-input-real"
+                    :max="hoy"
+                    @click="abrirCalendarioNacimiento"
+                    @focus="abrirCalendarioNacimiento"
+                  />
+
+                  <button
+                    type="button"
+                    class="date-picker-btn"
+                    @click="abrirCalendarioNacimiento"
+                  >
+                    Seleccionar
+                  </button>
+                </div>
+
+                <p class="nf-hint">
+                  Usa el calendario para evitar errores de formato.
+                </p>
               </div>
 
               <div class="nf-field">
@@ -408,7 +438,7 @@
 
                 <p v-if="fincas.length === 0" class="nf-hint">
                   No tienes fincas registradas.
-                  <a @click="cerrarModal(); router.push('/tabs/finca')" class="nf-link">
+                  <a @click="cerrarModal(); router.push('/tabs/perfil')" class="nf-link">
                     Crea una primero.
                   </a>
                 </p>
@@ -451,12 +481,25 @@
                   Fecha de ingreso
                 </label>
 
-                <input
-                  v-model="nuevoFechaIngreso"
-                  type="date"
-                  class="nf-input"
-                  :max="hoy"
-                />
+                <div class="date-field-wrap">
+                  <input
+                    ref="fechaIngresoInput"
+                    v-model="nuevoFechaIngreso"
+                    type="date"
+                    class="nf-input date-input-real"
+                    :max="hoy"
+                    @click="abrirCalendarioIngreso"
+                    @focus="abrirCalendarioIngreso"
+                  />
+
+                  <button
+                    type="button"
+                    class="date-picker-btn"
+                    @click="abrirCalendarioIngreso"
+                  >
+                    Seleccionar
+                  </button>
+                </div>
               </div>
 
               <div
@@ -503,11 +546,17 @@
 import {
   ref,
   computed,
-  onMounted
+  onMounted,
 } from 'vue';
 
 import { useRouter } from 'vue-router';
-import { IonPage, IonContent, IonModal } from '@ionic/vue';
+
+import {
+  IonPage,
+  IonContent,
+  IonModal,
+  onIonViewWillEnter,
+} from '@ionic/vue';
 
 import {
   getAnimales,
@@ -518,10 +567,10 @@ import {
   getFincasByUsuario,
   pesoNumerico,
   formatFecha,
-  AnimalDto,
-  PesajeDto,
-  RazaDto,
-  FincaDto,
+  type AnimalDto,
+  type PesajeDto,
+  type RazaDto,
+  type FincaDto,
 } from '@/services/api';
 
 const PESO_MINIMO = 50;
@@ -561,6 +610,10 @@ const nuevoPesoIngreso = ref<number | null>(null);
 const nuevoFechaIngreso = ref(new Date().toISOString().slice(0, 10));
 const hoy = new Date().toISOString().slice(0, 10);
 
+const fechaNacimientoInput = ref<HTMLInputElement | null>(null);
+const fechaIngresoInput = ref<HTMLInputElement | null>(null);
+const fechaMedicionInput = ref<HTMLInputElement | null>(null);
+
 let userId: number | undefined;
 
 const animalesFiltrados = computed(() => {
@@ -582,6 +635,7 @@ const pesajesValidos = computed(() => {
       const valor = pesoNumerico(p);
       return valor >= PESO_MINIMO && valor <= PESO_MAXIMO;
     })
+    .sort((a, b) => ordenarPesajesDesc(a, b))
     .slice(0, 10);
 });
 
@@ -621,6 +675,45 @@ const pesoIngresoTieneError = computed(() => {
   return !pesoEnRango(Number(nuevoPesoIngreso.value));
 });
 
+function abrirCalendarioNacimiento() {
+  fechaNacimientoInput.value?.showPicker?.();
+}
+
+function abrirCalendarioIngreso() {
+  fechaIngresoInput.value?.showPicker?.();
+}
+
+function abrirCalendarioMedicion() {
+  fechaMedicionInput.value?.showPicker?.();
+}
+
+function obtenerToken(): string | null {
+  return localStorage.getItem('token');
+}
+
+function obtenerUsuarioLocal(): any {
+  try {
+    return JSON.parse(localStorage.getItem('user') || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function limpiarDatosLocalesSesion() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  localStorage.removeItem('perfil');
+  localStorage.removeItem('animalSel');
+  localStorage.removeItem('fincaSel');
+  localStorage.removeItem('pesajeSel');
+  sessionStorage.clear();
+}
+
+function cerrarSesionLocal() {
+  limpiarDatosLocalesSesion();
+  router.replace('/login');
+}
+
 function inicialDeTexto(valor: string): string {
   const limpio = valor.trim();
 
@@ -653,6 +746,42 @@ function pesoEnRango(valor: number): boolean {
   return Number.isFinite(valor) &&
     valor >= PESO_MINIMO &&
     valor <= PESO_MAXIMO;
+}
+
+function fechaTiempoSeguro(valor: string | null | undefined): number {
+  if (!valor) {
+    return 0;
+  }
+
+  const fechaConvertida = new Date(valor);
+
+  if (Number.isNaN(fechaConvertida.getTime())) {
+    return 0;
+  }
+
+  return fechaConvertida.getTime();
+}
+
+function ordenarPesajesAsc(a: PesajeDto, b: PesajeDto): number {
+  const fechaA = fechaTiempoSeguro(a.fecha);
+  const fechaB = fechaTiempoSeguro(b.fecha);
+
+  if (fechaA !== fechaB) {
+    return fechaA - fechaB;
+  }
+
+  const creadoA = fechaTiempoSeguro((a as any).created_at);
+  const creadoB = fechaTiempoSeguro((b as any).created_at);
+
+  if (creadoA !== creadoB) {
+    return creadoA - creadoB;
+  }
+
+  return Number(a.id) - Number(b.id);
+}
+
+function ordenarPesajesDesc(a: PesajeDto, b: PesajeDto): number {
+  return ordenarPesajesAsc(b, a);
 }
 
 function validarPesoManual(): string | null {
@@ -718,7 +847,24 @@ function extraerMensajeError(error: unknown, mensajeDefault: string): string {
   return mensajeDefault;
 }
 
-const limpiarFormAnimal = () => {
+function resetForm() {
+  animalSel.value = null;
+  peso.value = null;
+  pesoReal.value = null;
+  fecha.value = new Date().toISOString().slice(0, 10);
+  errorMsg.value = '';
+  success.value = false;
+}
+
+function resetFormDespuesDeGuardar() {
+  animalSel.value = null;
+  peso.value = null;
+  pesoReal.value = null;
+  fecha.value = new Date().toISOString().slice(0, 10);
+  errorMsg.value = '';
+}
+
+function limpiarFormAnimal() {
   nuevoArete.value = '';
   nuevoNombre.value = '';
   nuevoRazaId.value = '';
@@ -733,7 +879,84 @@ const limpiarFormAnimal = () => {
   } else {
     nuevoFincaId.value = '';
   }
-};
+}
+
+function ajustarPeso(cambio: number) {
+  limpiarMensajes();
+
+  const actual = Number(peso.value || 0);
+  const nuevo = actual + cambio;
+
+  if (nuevo <= 0) {
+    peso.value = null;
+    return;
+  }
+
+  if (nuevo > PESO_MAXIMO) {
+    peso.value = PESO_MAXIMO;
+    return;
+  }
+
+  peso.value = Number(nuevo.toFixed(1));
+}
+
+async function cargarDatosIniciales(mostrarCarga = true) {
+  const token = obtenerToken();
+
+  if (!token) {
+    cerrarSesionLocal();
+    return;
+  }
+
+  if (mostrarCarga) {
+    loadingPesajes.value = true;
+  }
+
+  errorMsg.value = '';
+
+  const rawUser = obtenerUsuarioLocal();
+  userId = rawUser?.id;
+
+  try {
+    const [aData, pData, rData] = await Promise.all([
+      getAnimales(),
+      getPesajes(),
+      getRazas(),
+    ]);
+
+    animales.value = aData.datos || [];
+
+    pesajes.value = (pData.datos || [])
+      .sort((a, b) => ordenarPesajesDesc(a, b));
+
+    razas.value = rData.datos || [];
+
+    if (userId) {
+      fincas.value = (await getFincasByUsuario(userId)).datos || [];
+    } else {
+      fincas.value = [];
+    }
+
+    if (fincas.value.length === 1) {
+      nuevoFincaId.value = fincas.value[0].id;
+    }
+  } catch (e: any) {
+    if (String(e?.message || '').includes('401')) {
+      cerrarSesionLocal();
+      return;
+    }
+
+    errorMsg.value = 'No se pudieron cargar los datos iniciales.';
+  } finally {
+    loadingPesajes.value = false;
+  }
+}
+
+async function recargarVistaDespuesDePesaje() {
+  resetFormDespuesDeGuardar();
+  await cargarDatosIniciales(false);
+  success.value = true;
+}
 
 const abrirModal = async () => {
   modoModal.value = 'seleccionar';
@@ -769,34 +992,6 @@ const elegirAnimal = (a: AnimalDto) => {
   mostrarSelector.value = false;
   limpiarMensajes();
 };
-
-function resetForm() {
-  animalSel.value = null;
-  peso.value = null;
-  pesoReal.value = null;
-  fecha.value = new Date().toISOString().slice(0, 10);
-  errorMsg.value = '';
-  success.value = false;
-}
-
-function ajustarPeso(cambio: number) {
-  limpiarMensajes();
-
-  const actual = Number(peso.value || 0);
-  const nuevo = actual + cambio;
-
-  if (nuevo <= 0) {
-    peso.value = null;
-    return;
-  }
-
-  if (nuevo > PESO_MAXIMO) {
-    peso.value = PESO_MAXIMO;
-    return;
-  }
-
-  peso.value = Number(nuevo.toFixed(1));
-}
 
 const crearAnimal = async () => {
   errorCrear.value = '';
@@ -873,18 +1068,7 @@ const crearAnimal = async () => {
       } as any);
     }
 
-    const [aData, pData] = await Promise.all([
-      getAnimales(),
-      getPesajes(),
-    ]);
-
-    animales.value = aData.datos || [];
-
-    pesajes.value = (pData.datos || [])
-      .sort((a, b) =>
-        new Date(b.fecha).getTime() -
-        new Date(a.fecha).getTime()
-      );
+    await cargarDatosIniciales(false);
 
     successCrear.value = nuevoPesoIngreso.value
       ? `Animal "${animal.nombre}" creado y pesaje de ingreso registrado.`
@@ -925,16 +1109,7 @@ async function guardar() {
       fuente_id: FUENTE_MANUAL,
     } as any);
 
-    const r = await getPesajes();
-
-    pesajes.value = (r.datos || [])
-      .sort((a, b) =>
-        new Date(b.fecha).getTime() -
-        new Date(a.fecha).getTime()
-      );
-
-    resetForm();
-    success.value = true;
+    await recargarVistaDespuesDePesaje();
 
   } catch (e: unknown) {
     console.error(e);
@@ -944,39 +1119,12 @@ async function guardar() {
   }
 }
 
-onMounted(async () => {
-  const raw = localStorage.getItem('user');
-  userId = raw ? (JSON.parse(raw) as { id?: number }).id : undefined;
+onMounted(() => {
+  cargarDatosIniciales();
+});
 
-  try {
-    const [aData, pData, rData] = await Promise.all([
-      getAnimales(),
-      getPesajes(),
-      getRazas(),
-    ]);
-
-    animales.value = aData.datos || [];
-
-    pesajes.value = (pData.datos || [])
-      .sort((a, b) =>
-        new Date(b.fecha).getTime() -
-        new Date(a.fecha).getTime()
-      );
-
-    razas.value = rData.datos || [];
-
-    if (userId) {
-      fincas.value = (await getFincasByUsuario(userId)).datos || [];
-
-      if (fincas.value.length === 1) {
-        nuevoFincaId.value = fincas.value[0].id;
-      }
-    }
-  } catch {
-    errorMsg.value = 'No se pudieron cargar los datos iniciales.';
-  } finally {
-    loadingPesajes.value = false;
-  }
+onIonViewWillEnter(() => {
+  cargarDatosIniciales();
 });
 </script>
 
@@ -1565,5 +1713,33 @@ onMounted(async () => {
   font-weight: 800;
   color: #6B7280;
   pointer-events: none;
+}
+
+.date-field-wrap {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.date-input-real {
+  flex: 1;
+}
+
+.date-picker-btn {
+  height: 42px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 12px;
+  background: #1E5631;
+  color: #fff;
+  font-size: .75rem;
+  font-weight: 900;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.date-picker-btn:hover {
+  opacity: .94;
 }
 </style>

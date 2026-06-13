@@ -7,6 +7,8 @@ use App\Estimacion\AlgoritmoRegresionLineal;
 use App\Estimacion\AlgoritmoTablaReferencia;
 use App\Estimacion\AlgoritmoYolov8;
 use App\Helpers\ApiResponse;
+use App\Models\Animal;
+use App\Models\Imagen;
 use App\Models\Pesaje;
 use App\Observers\AlertaSMS;
 use App\Observers\NotificadorPropietario;
@@ -19,12 +21,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use App\Models\Imagen;
 
 class PesajeController extends Controller
 {
-    private const PESO_MINIMO_KG = 50;
-    private const PESO_MAXIMO_KG = 1200;
+    private const PESO_MINIMO = 50;
+    private const PESO_MAXIMO = 1200;
 
     private const FUENTE_IA = 1;
     private const FUENTE_BASCULA = 2;
@@ -34,14 +35,19 @@ class PesajeController extends Controller
         private readonly ServicioIA $servicioIA
     ) {}
 
-    public function listar(): JsonResponse
+    public function listar(Request $request): JsonResponse
     {
         $pesajes = Pesaje::with([
                 'animal.raza',
                 'animal.finca',
-                'fuente'
+                'fuente',
             ])
+            ->whereHas('animal.finca', function ($query) use ($request) {
+                $query->where('user_id', $request->user()->id);
+            })
             ->orderBy('fecha', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc')
             ->get();
 
         return ApiResponse::success(
@@ -50,15 +56,25 @@ class PesajeController extends Controller
         );
     }
 
-    public function obtenerPorAnimal(int $animal_id): JsonResponse
+    public function obtenerPorAnimal(Request $request, int $animal_id): JsonResponse
     {
+        if (!$this->animalPerteneceAlUsuario($request, $animal_id)) {
+            return ApiResponse::error(
+                'Animal no encontrado o no pertenece al usuario',
+                [],
+                404
+            );
+        }
+
         $pesajes = Pesaje::with([
                 'animal.raza',
                 'animal.finca',
-                'fuente'
+                'fuente',
             ])
             ->where('animal_id', $animal_id)
             ->orderBy('fecha', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc')
             ->get();
 
         return ApiResponse::success(
@@ -71,22 +87,11 @@ class PesajeController extends Controller
     {
         $datos = $request->validate([
             'animal_id' => 'required|exists:animales,id',
-            'fecha' => 'required|date',
+            'fecha' => 'required|date|before_or_equal:today',
             'fuente_id' => 'nullable|exists:fuentes_pesaje,id',
 
-            'peso_estimado' => [
-                'nullable',
-                'numeric',
-                'min:' . self::PESO_MINIMO_KG,
-                'max:' . self::PESO_MAXIMO_KG,
-            ],
-
-            'peso_real' => [
-                'nullable',
-                'numeric',
-                'min:' . self::PESO_MINIMO_KG,
-                'max:' . self::PESO_MAXIMO_KG,
-            ],
+            'peso_estimado' => 'nullable|numeric|min:' . self::PESO_MINIMO . '|max:' . self::PESO_MAXIMO,
+            'peso_real' => 'nullable|numeric|min:' . self::PESO_MINIMO . '|max:' . self::PESO_MAXIMO,
 
             'metodo_estimacion' => 'nullable|in:yolov8,regresion,tabla',
 
@@ -95,15 +100,15 @@ class PesajeController extends Controller
             'largo_corporal_cm' => 'nullable|numeric',
             'perimetro_toracico_cm' => 'nullable|numeric',
             'peso_referencia' => 'nullable|numeric',
-        ], [
-            'peso_estimado.numeric' => 'El peso registrado debe ser un número válido.',
-            'peso_estimado.min' => 'El peso registrado debe ser mayor o igual a 50 kg.',
-            'peso_estimado.max' => 'El peso registrado no puede superar los 1200 kg.',
-
-            'peso_real.numeric' => 'El peso real debe ser un número válido.',
-            'peso_real.min' => 'El peso real debe ser mayor o igual a 50 kg.',
-            'peso_real.max' => 'El peso real no puede superar los 1200 kg.',
         ]);
+
+        if (!$this->animalPerteneceAlUsuario($request, (int) $datos['animal_id'])) {
+            return ApiResponse::error(
+                'Animal no encontrado o no pertenece al usuario',
+                [],
+                404
+            );
+        }
 
         $resultadoEstimacion = null;
 
@@ -124,43 +129,20 @@ class PesajeController extends Controller
             $pesoEstimado = (float) $resultadoEstimacion->pesoKg;
         }
 
-        if (
-            $pesoEstimado < self::PESO_MINIMO_KG ||
-            $pesoEstimado > self::PESO_MAXIMO_KG
-        ) {
+        if (!$this->pesoEnRango($pesoEstimado)) {
             return ApiResponse::error(
-                'El peso registrado debe estar entre 50 kg y 1200 kg.',
+                'El peso estimado debe estar entre ' . self::PESO_MINIMO . ' kg y ' . self::PESO_MAXIMO . ' kg',
                 [],
                 422
             );
         }
-
-        $pesoReal = isset($datos['peso_real'])
-            ? (float) $datos['peso_real']
-            : null;
-
-        if (
-            $pesoReal !== null &&
-            (
-                $pesoReal < self::PESO_MINIMO_KG ||
-                $pesoReal > self::PESO_MAXIMO_KG
-            )
-        ) {
-            return ApiResponse::error(
-                'El peso real debe estar entre 50 kg y 1200 kg.',
-                [],
-                422
-            );
-        }
-
-        $fuenteId = $datos['fuente_id'] ?? self::FUENTE_MANUAL;
 
         $pesaje = new Pesaje([
             'animal_id' => $datos['animal_id'],
             'peso_estimado' => $pesoEstimado,
-            'peso_real' => $pesoReal,
+            'peso_real' => $datos['peso_real'] ?? null,
             'fecha' => $datos['fecha'],
-            'fuente_id' => $fuenteId,
+            'fuente_id' => $datos['fuente_id'] ?? self::FUENTE_MANUAL,
         ]);
 
         $subject = new PesajeSubject();
@@ -175,7 +157,7 @@ class PesajeController extends Controller
         $pesaje->load([
             'animal.raza',
             'animal.finca',
-            'fuente'
+            'fuente',
         ]);
 
         $respuesta = $pesaje->toArray();
@@ -191,18 +173,22 @@ class PesajeController extends Controller
         );
     }
 
-    public function obtener(int $id): JsonResponse
+    public function obtener(Request $request, int $id): JsonResponse
     {
         $pesaje = Pesaje::with([
                 'animal.raza',
                 'animal.finca',
-                'fuente'
+                'fuente',
             ])
-            ->find($id);
+            ->where('id', $id)
+            ->whereHas('animal.finca', function ($query) use ($request) {
+                $query->where('user_id', $request->user()->id);
+            })
+            ->first();
 
         if (!$pesaje) {
             return ApiResponse::error(
-                'Pesaje no encontrado',
+                'Pesaje no encontrado o no pertenece al usuario',
                 [],
                 404
             );
@@ -216,69 +202,62 @@ class PesajeController extends Controller
 
     public function actualizar(Request $request, int $id): JsonResponse
     {
-        $pesaje = Pesaje::find($id);
+        $pesaje = Pesaje::with(['animal.finca'])
+            ->where('id', $id)
+            ->whereHas('animal.finca', function ($query) use ($request) {
+                $query->where('user_id', $request->user()->id);
+            })
+            ->first();
 
         if (!$pesaje) {
             return ApiResponse::error(
-                'Pesaje no encontrado',
+                'Pesaje no encontrado o no pertenece al usuario',
                 [],
                 404
             );
         }
 
         $datos = $request->validate([
-            'peso_estimado' => [
-                'required',
-                'numeric',
-                'min:' . self::PESO_MINIMO_KG,
-                'max:' . self::PESO_MAXIMO_KG,
-            ],
-
-            'peso_real' => [
-                'nullable',
-                'numeric',
-                'min:' . self::PESO_MINIMO_KG,
-                'max:' . self::PESO_MAXIMO_KG,
-            ],
-
-            'fecha' => 'required|date',
+            'peso_estimado' => 'required|numeric|min:' . self::PESO_MINIMO . '|max:' . self::PESO_MAXIMO,
+            'peso_real' => 'nullable|numeric|min:' . self::PESO_MINIMO . '|max:' . self::PESO_MAXIMO,
+            'fecha' => 'required|date|before_or_equal:today',
             'fuente_id' => 'nullable|exists:fuentes_pesaje,id',
-        ], [
-            'peso_estimado.required' => 'El peso registrado es obligatorio.',
-            'peso_estimado.numeric' => 'El peso registrado debe ser un número válido.',
-            'peso_estimado.min' => 'El peso registrado debe ser mayor o igual a 50 kg.',
-            'peso_estimado.max' => 'El peso registrado no puede superar los 1200 kg.',
-
-            'peso_real.numeric' => 'El peso real debe ser un número válido.',
-            'peso_real.min' => 'El peso real debe ser mayor o igual a 50 kg.',
-            'peso_real.max' => 'El peso real no puede superar los 1200 kg.',
         ]);
 
-        $datos['fuente_id'] = $datos['fuente_id']
-            ?? $pesaje->fuente_id
-            ?? self::FUENTE_MANUAL;
-
-        $pesaje->update($datos);
+        $pesaje->update([
+            'peso_estimado' => $datos['peso_estimado'],
+            'peso_real' => $datos['peso_real'] ?? null,
+            'fecha' => $datos['fecha'],
+            'fuente_id' => $datos['fuente_id'] ?? $pesaje->fuente_id ?? self::FUENTE_MANUAL,
+        ]);
 
         $pesaje->load([
             'animal.raza',
             'animal.finca',
-            'fuente'
+            'fuente',
         ]);
 
         return ApiResponse::success(
             'Pesaje actualizado correctamente',
-            $pesaje
+            $pesaje->fresh([
+                'animal.raza',
+                'animal.finca',
+                'fuente',
+            ])
         );
     }
 
-    public function eliminar(int $id): JsonResponse
+    public function eliminar(Request $request, int $id): JsonResponse
     {
-        $pesaje = Pesaje::find($id);
+        $pesaje = Pesaje::where('id', $id)
+            ->whereHas('animal.finca', function ($query) use ($request) {
+                $query->where('user_id', $request->user()->id);
+            })
+            ->first();
 
         if (!$pesaje) {
             return ApiResponse::error(
-                'Pesaje no encontrado',
+                'Pesaje no encontrado o no pertenece al usuario',
                 [],
                 404
             );
@@ -329,7 +308,7 @@ class PesajeController extends Controller
                 || str_contains($mensaje, 'peso');
 
             Log::warning('[estimarPeso] Error al analizar imagen', [
-                'error' => $mensaje
+                'error' => $mensaje,
             ]);
 
             return ApiResponse::error(
@@ -342,46 +321,32 @@ class PesajeController extends Controller
 
     public function confirmarIA(Request $request): JsonResponse
     {
-        $request->validate([
+        $datos = $request->validate([
             'animal_id' => 'required|integer|exists:animales,id',
-
-            'peso_estimado' => [
-                'required',
-                'numeric',
-                'min:' . self::PESO_MINIMO_KG,
-                'max:' . self::PESO_MAXIMO_KG,
-            ],
-
-            'peso_real' => [
-                'nullable',
-                'numeric',
-                'min:' . self::PESO_MINIMO_KG,
-                'max:' . self::PESO_MAXIMO_KG,
-            ],
-
-            'fecha' => 'required|date',
+            'peso_estimado' => 'required|numeric|min:' . self::PESO_MINIMO . '|max:' . self::PESO_MAXIMO,
+            'peso_real' => 'nullable|numeric|min:' . self::PESO_MINIMO . '|max:' . self::PESO_MAXIMO,
+            'fecha' => 'required|date|before_or_equal:today',
             'imagen' => 'nullable|image|max:10240',
             'fuente_id' => 'nullable|integer|exists:fuentes_pesaje,id',
-        ], [
-            'peso_estimado.required' => 'El peso estimado es obligatorio.',
-            'peso_estimado.numeric' => 'El peso estimado debe ser un número válido.',
-            'peso_estimado.min' => 'El peso estimado debe ser mayor o igual a 50 kg.',
-            'peso_estimado.max' => 'El peso estimado no puede superar los 1200 kg.',
-
-            'peso_real.numeric' => 'El peso real debe ser un número válido.',
-            'peso_real.min' => 'El peso real debe ser mayor o igual a 50 kg.',
-            'peso_real.max' => 'El peso real no puede superar los 1200 kg.',
         ]);
 
+        if (!$this->animalPerteneceAlUsuario($request, (int) $datos['animal_id'])) {
+            return ApiResponse::error(
+                'Animal no encontrado o no pertenece al usuario',
+                [],
+                404
+            );
+        }
+
         try {
-            return DB::transaction(function () use ($request) {
+            return DB::transaction(function () use ($request, $datos) {
 
                 $pesaje = Pesaje::create([
-                    'animal_id' => $request->integer('animal_id'),
-                    'peso_estimado' => $request->input('peso_estimado'),
-                    'peso_real' => $request->input('peso_real'),
-                    'fecha' => $request->input('fecha'),
-                    'fuente_id' => $request->input('fuente_id', self::FUENTE_IA),
+                    'animal_id' => $datos['animal_id'],
+                    'peso_estimado' => $datos['peso_estimado'],
+                    'peso_real' => $datos['peso_real'] ?? null,
+                    'fecha' => $datos['fecha'],
+                    'fuente_id' => $datos['fuente_id'] ?? self::FUENTE_IA,
                 ]);
 
                 $registroImagen = null;
@@ -393,14 +358,14 @@ class PesajeController extends Controller
                         'pesaje_id' => $pesaje->id,
                         'url' => Storage::url($rutaImagen),
                         'procesada' => true,
-                        'fecha' => $request->input('fecha'),
+                        'fecha' => $datos['fecha'],
                     ]);
                 }
 
                 $pesaje->load([
                     'animal.raza',
                     'animal.finca',
-                    'fuente'
+                    'fuente',
                 ]);
 
                 return ApiResponse::success(
@@ -413,12 +378,30 @@ class PesajeController extends Controller
                 );
             });
 
-        } catch (\Throwable $e) {
+        } catch (\Throwable $error) {
+            Log::error('[confirmarIA] Error al guardar pesaje IA', [
+                'error' => $error->getMessage(),
+            ]);
+
             return ApiResponse::error(
-                $e->getMessage(),
+                $error->getMessage() ?: 'No se pudo guardar el pesaje.',
                 [],
                 500
             );
         }
+    }
+
+    private function animalPerteneceAlUsuario(Request $request, int $animalId): bool
+    {
+        return Animal::where('id', $animalId)
+            ->whereHas('finca', function ($query) use ($request) {
+                $query->where('user_id', $request->user()->id);
+            })
+            ->exists();
+    }
+
+    private function pesoEnRango(float|int $peso): bool
+    {
+        return $peso >= self::PESO_MINIMO && $peso <= self::PESO_MAXIMO;
     }
 }

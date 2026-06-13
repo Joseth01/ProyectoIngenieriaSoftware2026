@@ -2,25 +2,22 @@
   <ion-page>
     <ion-content :fullscreen="true" class="page-bg">
 
-      <!-- ══════════ VISTA: MENÚ PRINCIPAL ══════════ -->
       <template v-if="vista === 'menu'">
-
-        <!-- App bar -->
         <div class="app-bar">
           <div class="app-logo">
             <div class="logo-dot">🐄</div>
             <span class="logo-txt">BovWeight CR</span>
           </div>
 
-          <button class="icon-btn" @click="router.push('/tabs/dashboard')">⚙</button>
+          <button class="icon-btn" @click="recargarVista">
+            ↻
+          </button>
         </div>
 
-        <!-- Estado cargando -->
         <div v-if="cargandoPerfil" class="loading-box">
           Cargando perfil...
         </div>
 
-        <!-- Profile hero -->
         <div v-else class="profile-hero">
           <div class="avatar-wrap">
             <div class="avatar-circle">{{ iniciales }}</div>
@@ -46,14 +43,12 @@
         </div>
 
         <div class="body-pad">
-          <!-- Rol badge -->
           <div style="margin-bottom:14px">
             <span class="rol-badge" :class="`rol-${user.rol}`">
               {{ rolLabel }}
             </span>
           </div>
 
-          <!-- Menu items -->
           <div class="list-item" @click="vista = 'personal'">
             <div class="li-ico">👤</div>
             <div class="li-info">
@@ -62,7 +57,7 @@
             <span class="chev">›</span>
           </div>
 
-          <div class="list-item" @click="vista = 'hacienda'">
+          <div class="list-item" @click="abrirHacienda">
             <div class="li-ico">🏡</div>
             <div class="li-info">
               <div class="li-title">Detalles de la Hacienda</div>
@@ -75,6 +70,7 @@
             <div class="li-info">
               <div class="li-title">Notificaciones</div>
             </div>
+
             <div
               class="toggle"
               :class="{ 'toggle-off': !notifOn }"
@@ -113,19 +109,18 @@
         </div>
       </template>
 
-      <!-- ══════════ VISTA: INFORMACIÓN PERSONAL ══════════ -->
       <template v-else-if="vista === 'personal'">
         <div class="sub-bar">
           <button class="back-btn" @click="volverAlMenu">
             ‹ Perfil
           </button>
+
           <div class="sub-bar-title">
             {{ editando ? 'Editar Perfil' : 'Información Personal' }}
           </div>
         </div>
 
         <div class="body-pad">
-          <!-- Card top -->
           <div class="profile-card-top">
             <div class="pcb"></div>
 
@@ -140,16 +135,16 @@
               class="btn-edit"
               @click="activarEdicion"
             >
-              ✏ Editar Perfil
+              Editar Perfil
             </button>
           </div>
 
-          <!-- Fields -->
           <div class="info-card">
             <div class="ic-title">DATOS DE LA CUENTA</div>
 
             <div class="field-group">
               <label class="field-label">Nombre Completo</label>
+
               <div class="field-box" :class="{ 'field-readonly': !editando }">
                 <span class="field-ico">👤</span>
 
@@ -169,6 +164,7 @@
 
             <div class="field-group">
               <label class="field-label">Correo Electrónico</label>
+
               <div class="field-box" :class="{ 'field-readonly': !editando }">
                 <span class="field-ico">✉</span>
 
@@ -188,6 +184,7 @@
 
             <div class="field-group">
               <label class="field-label">Rol</label>
+
               <div class="field-box field-readonly">
                 <span class="field-ico">🏷️</span>
                 <span class="field-val">{{ rolLabel }}</span>
@@ -201,7 +198,7 @@
               :disabled="guardandoPerfil"
               @click="guardarCambios"
             >
-              {{ guardandoPerfil ? 'Guardando...' : '💾 Guardar Cambios' }}
+              {{ guardandoPerfil ? 'Guardando...' : 'Guardar Cambios' }}
             </button>
 
             <button
@@ -221,15 +218,20 @@
         </div>
       </template>
 
-      <!-- ══════════ VISTA: HACIENDA ══════════ -->
       <template v-else-if="vista === 'hacienda'">
         <div class="sub-bar">
-          <button class="back-btn" @click="vista = 'menu'">‹ Perfil</button>
+          <button class="back-btn" @click="vista = 'menu'">
+            ‹ Perfil
+          </button>
+
           <div class="sub-bar-title">Detalles de la Hacienda</div>
+
+          <button class="icon-btn" @click="recargarVista">
+            ↻
+          </button>
         </div>
 
         <div class="body-pad">
-          <!-- Metrics -->
           <div class="hac-metrics">
             <div class="hm-card">
               <div class="hm-ico">🐄</div>
@@ -257,23 +259,31 @@
 
           <div
             v-for="(f, i) in fincas"
-            :key="i"
+            :key="f.id || i"
             class="finca-row"
-            @click="fincaSel = f; vista = 'finca-detalle'"
+            @click="abrirDetalleFinca(f)"
           >
             <div class="fr-info">
               <div class="fr-name">{{ f.nombre }}</div>
-              <div class="fr-loc">📍 {{ f.cabezas }} cabezas</div>
+
+              <div class="fr-loc">
+                📍 {{ f.ubicacion || 'Sin ubicación registrada' }}
+              </div>
+
+              <div class="fr-loc">
+                {{ f.cabezas }} cabezas
+              </div>
             </div>
+
             <span class="chev">›</span>
           </div>
 
           <button
             class="btn-primary"
             style="margin-top:12px"
-            @click="mostrarModal = true"
+            @click="abrirModalFinca"
           >
-            ➕ Vincular Nueva Finca
+            Vincular Nueva Finca
           </button>
 
           <button class="btn-outline" @click="vista = 'menu'">
@@ -282,54 +292,127 @@
         </div>
       </template>
 
-      <!-- ══════════ VISTA: DETALLE FINCA ══════════ -->
       <template v-else-if="vista === 'finca-detalle' && fincaSel">
         <div class="sub-bar">
-          <button class="back-btn" @click="vista = 'hacienda'">
+          <button class="back-btn" @click="volverAFincas">
             ‹ Fincas
           </button>
+
           <div class="sub-bar-title">{{ fincaSel.nombre }}</div>
         </div>
 
         <div class="body-pad">
           <div class="info-card">
-            <div class="ic-title">EXPEDIENTE DE LA FINCA</div>
-
-            <div class="field-group">
-              <label class="field-label">Nombre</label>
-              <div class="field-box field-readonly">
-                <span class="field-ico">🏡</span>
-                <span class="field-val">{{ fincaSel.nombre }}</span>
-              </div>
+            <div class="ic-title">
+              {{ editandoFinca ? 'EDITAR FINCA' : 'EXPEDIENTE DE LA FINCA' }}
             </div>
 
-            <div class="field-group">
-              <label class="field-label">Cabezas</label>
-              <div class="field-box field-readonly">
-                <span class="field-ico">🐄</span>
-                <span class="field-val">{{ fincaSel.cabezas }}</span>
+            <template v-if="!editandoFinca">
+              <div class="field-group">
+                <label class="field-label">Nombre</label>
+
+                <div class="field-box field-readonly">
+                  <span class="field-ico">🏡</span>
+                  <span class="field-val">{{ fincaSel.nombre }}</span>
+                </div>
               </div>
-            </div>
+
+              <div class="field-group">
+                <label class="field-label">Ubicación</label>
+
+                <div class="field-box field-readonly">
+                  <span class="field-ico">📍</span>
+                  <span class="field-val">
+                    {{ fincaSel.ubicacion || 'Sin ubicación registrada' }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="field-group">
+                <label class="field-label">Cabezas</label>
+
+                <div class="field-box field-readonly">
+                  <span class="field-ico">🐄</span>
+                  <span class="field-val">{{ fincaSel.cabezas }}</span>
+                </div>
+              </div>
+            </template>
+
+            <template v-else>
+              <div class="field-group">
+                <label class="field-label">Nombre de la finca</label>
+
+                <div class="field-box">
+                  <input
+                    v-model.trim="formFinca.nombre"
+                    class="field-input"
+                    type="text"
+                    placeholder="Nombre de la finca"
+                  />
+                </div>
+              </div>
+
+              <div class="field-group">
+                <label class="field-label">Ubicación</label>
+
+                <div class="field-box">
+                  <input
+                    v-model.trim="formFinca.ubicacion"
+                    class="field-input"
+                    type="text"
+                    placeholder="Ej: Nicoya, Guanacaste"
+                  />
+                </div>
+              </div>
+
+              <div v-if="errorEdicionFinca" class="feedback error">
+                {{ errorEdicionFinca }}
+              </div>
+            </template>
           </div>
 
-          <button class="btn-outline" @click="vista = 'hacienda'">
-            ‹ Volver a Fincas
-          </button>
+          <template v-if="!editandoFinca">
+            <button class="btn-primary" @click="activarEdicionFinca">
+              Editar finca
+            </button>
+
+            <button class="btn-outline" @click="vista = 'hacienda'">
+              ‹ Volver a Fincas
+            </button>
+          </template>
+
+          <template v-else>
+            <button
+              class="btn-primary"
+              :disabled="guardandoEdicionFinca"
+              @click="guardarEdicionFinca"
+            >
+              {{ guardandoEdicionFinca ? 'Guardando...' : 'Guardar cambios' }}
+            </button>
+
+            <button
+              class="btn-outline"
+              :disabled="guardandoEdicionFinca"
+              @click="cancelarEdicionFinca"
+            >
+              Cancelar
+            </button>
+          </template>
         </div>
       </template>
 
-      <!-- ══════════ MODAL: NUEVA FINCA ══════════ -->
-      <ion-modal :is-open="mostrarModal" @didDismiss="mostrarModal = false">
+      <ion-modal :is-open="mostrarModal" @didDismiss="cerrarModalFinca">
         <ion-content class="page-bg">
           <div class="sub-bar">
             <div class="sub-bar-title">Nueva Finca</div>
-            <button class="icon-btn" @click="mostrarModal = false">✕</button>
+            <button class="icon-btn" @click="cerrarModalFinca">✕</button>
           </div>
 
           <div class="body-pad">
             <div class="info-card">
               <div class="field-group">
                 <label class="field-label">Nombre de la Finca</label>
+
                 <div class="field-box">
                   <input
                     v-model.trim="nuevaFinca.nombre"
@@ -340,23 +423,29 @@
               </div>
 
               <div class="field-group">
-                <label class="field-label">Número de Cabezas</label>
+                <label class="field-label">Ubicación</label>
+
                 <div class="field-box">
                   <input
-                    v-model.number="nuevaFinca.cabezas"
+                    v-model.trim="nuevaFinca.ubicacion"
                     class="field-input"
-                    type="number"
-                    placeholder="0"
+                    type="text"
+                    placeholder="Ej: Nicoya, Guanacaste"
                   />
                 </div>
               </div>
+            </div>
+
+            <div v-if="errorFinca" class="feedback error">
+              {{ errorFinca }}
             </div>
 
             <div style="display:flex;gap:10px">
               <button
                 class="btn-outline"
                 style="flex:1"
-                @click="mostrarModal = false"
+                :disabled="guardandoFinca"
+                @click="cerrarModalFinca"
               >
                 Cancelar
               </button>
@@ -364,9 +453,10 @@
               <button
                 class="btn-primary"
                 style="flex:2"
+                :disabled="guardandoFinca"
                 @click="vincularFinca"
               >
-                Confirmar
+                {{ guardandoFinca ? 'Guardando...' : 'Confirmar' }}
               </button>
             </div>
           </div>
@@ -385,6 +475,7 @@ import {
   IonContent,
   IonModal,
   toastController,
+  onIonViewWillEnter,
 } from '@ionic/vue';
 
 import {
@@ -402,9 +493,15 @@ interface UsuarioPerfil {
 }
 
 interface FincaLocal {
+  id?: number;
   nombre: string;
-  cabezas: number;
   ubicacion?: string | null;
+  cabezas: number;
+}
+
+interface NuevaFincaForm {
+  nombre: string;
+  ubicacion: string;
 }
 
 const router = useRouter();
@@ -419,27 +516,36 @@ const fincaSel = ref<FincaLocal | null>(null);
 
 const cargandoPerfil = ref(false);
 const guardandoPerfil = ref(false);
+const guardandoFinca = ref(false);
+const errorFinca = ref('');
 
-const rawUser = obtenerUsuarioLocal();
+const editandoFinca = ref(false);
+const guardandoEdicionFinca = ref(false);
+const errorEdicionFinca = ref('');
 
 const user = ref<UsuarioPerfil>({
-  id: rawUser.id,
-  name: rawUser.name || 'Usuario',
-  email: rawUser.email || '',
-  rol: (rawUser.rol || 'ganadero') as RolUsuario,
+  id: undefined,
+  name: 'Usuario',
+  email: '',
+  rol: 'ganadero',
 });
 
 const form = ref({
-  name: user.value.name,
-  email: user.value.email,
+  name: '',
+  email: '',
+});
+
+const formFinca = ref({
+  nombre: '',
+  ubicacion: '',
 });
 
 const fincas = ref<FincaLocal[]>([]);
 const totalCabezas = ref(0);
 
-const nuevaFinca = ref<FincaLocal>({
+const nuevaFinca = ref<NuevaFincaForm>({
   nombre: '',
-  cabezas: 0,
+  ubicacion: '',
 });
 
 const iniciales = computed(() => {
@@ -466,21 +572,38 @@ const rolLabel = computed(() => {
   return '🐄 Ganadero';
 });
 
-onMounted(async () => {
-  await cargarPerfil();
-  await cargarDatosFincas();
+onMounted(() => {
+  recargarVista();
 });
 
-function obtenerUsuarioLocal(): any {
-  try {
-    return JSON.parse(localStorage.getItem('user') || '{}');
-  } catch {
-    return {};
-  }
-}
+onIonViewWillEnter(() => {
+  recargarVista();
+});
 
 function obtenerToken(): string | null {
   return localStorage.getItem('token');
+}
+
+function limpiarDatosLocalesSesion() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  localStorage.removeItem('perfil');
+  localStorage.removeItem('animalSel');
+  localStorage.removeItem('fincaSel');
+  localStorage.removeItem('pesajeSel');
+  sessionStorage.clear();
+}
+
+async function validarSesion(): Promise<boolean> {
+  const token = obtenerToken();
+
+  if (!token) {
+    limpiarDatosLocalesSesion();
+    router.replace('/login');
+    return false;
+  }
+
+  return true;
 }
 
 async function mostrarToast(
@@ -496,12 +619,41 @@ async function mostrarToast(
   await toast.present();
 }
 
+function extraerErrores(data: any, mensajeDefault: string): string {
+  if (data?.errores) {
+    return Object.values(data.errores).flat().join(' ');
+  }
+
+  return data?.mensaje || mensajeDefault;
+}
+
+async function recargarVista() {
+  if (!(await validarSesion())) {
+    return;
+  }
+
+  await cargarPerfil();
+  await cargarDatosFincas();
+
+  if (fincaSel.value?.id) {
+    const fincaActualizada = fincas.value.find(
+      (f) => Number(f.id) === Number(fincaSel.value?.id)
+    );
+
+    fincaSel.value = fincaActualizada || null;
+
+    if (!fincaSel.value && vista.value === 'finca-detalle') {
+      vista.value = 'hacienda';
+    }
+  }
+}
+
 async function cargarPerfil() {
   const token = obtenerToken();
 
   if (!token) {
-    await mostrarToast('No se encontró sesión activa. Inicia sesión nuevamente.', 'warning');
-    router.push('/login');
+    limpiarDatosLocalesSesion();
+    router.replace('/login');
     return;
   }
 
@@ -517,6 +669,12 @@ async function cargarPerfil() {
     });
 
     const data = await response.json();
+
+    if (response.status === 401) {
+      limpiarDatosLocalesSesion();
+      router.replace('/login');
+      return;
+    }
 
     if (!response.ok || !data.exito) {
       throw new Error(data.mensaje || 'No se pudo obtener el perfil.');
@@ -560,13 +718,8 @@ async function cargarDatosFincas() {
       ? animalesRaw
       : (animalesRaw as any).datos ?? [];
 
-    const userId = user.value.id;
-
-    const fincasData = userId
-      ? todasFincas.filter((f: FincaDto) => Number(f.user_id) === Number(userId))
-      : todasFincas;
-
-    fincas.value = fincasData.map((f: FincaDto) => ({
+    fincas.value = todasFincas.map((f: FincaDto) => ({
+      id: f.id,
       nombre: f.nombre,
       ubicacion: f.ubicacion,
       cabezas: todosAnimales.filter((a: any) => Number(a.finca_id) === Number(f.id)).length,
@@ -576,10 +729,22 @@ async function cargarDatosFincas() {
       (s: number, f: FincaLocal) => s + f.cabezas,
       0
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error cargando fincas/animales:', error);
+
+    if (String(error?.message || '').includes('401')) {
+      limpiarDatosLocalesSesion();
+      router.replace('/login');
+      return;
+    }
+
     await mostrarToast('No se pudieron cargar las fincas del usuario.', 'warning');
   }
+}
+
+async function abrirHacienda() {
+  await recargarVista();
+  vista.value = 'hacienda';
 }
 
 function activarEdicion() {
@@ -634,8 +799,8 @@ async function guardarCambios() {
   const token = obtenerToken();
 
   if (!token) {
-    await mostrarToast('No se encontró sesión activa. Inicia sesión nuevamente.', 'warning');
-    router.push('/login');
+    limpiarDatosLocalesSesion();
+    router.replace('/login');
     return;
   }
 
@@ -650,30 +815,28 @@ async function guardarCambios() {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        name: form.value.name,
-        email: form.value.email,
+        name: form.value.name.trim(),
+        email: form.value.email.trim(),
       }),
     });
 
     const data = await response.json();
 
-    if (!response.ok || !data.exito) {
-      const errores = data.errores ? Object.values(data.errores).flat().join(' ') : '';
-      throw new Error(errores || data.mensaje || 'No se pudo actualizar el perfil.');
+    if (response.status === 401) {
+      limpiarDatosLocalesSesion();
+      router.replace('/login');
+      return;
     }
 
-    const perfilActualizado = data.datos;
-
-    user.value = {
-      id: perfilActualizado.id,
-      name: perfilActualizado.name || form.value.name,
-      email: perfilActualizado.email || form.value.email,
-      rol: (perfilActualizado.rol || user.value.rol || 'ganadero') as RolUsuario,
-    };
-
-    localStorage.setItem('user', JSON.stringify(user.value));
+    if (!response.ok || !data.exito) {
+      throw new Error(extraerErrores(data, 'No se pudo actualizar el perfil.'));
+    }
 
     editando.value = false;
+
+    await recargarVista();
+
+    vista.value = 'menu';
 
     await mostrarToast('Perfil actualizado correctamente.', 'success');
   } catch (error: any) {
@@ -684,28 +847,209 @@ async function guardarCambios() {
   }
 }
 
-const vincularFinca = async () => {
+function abrirDetalleFinca(finca: FincaLocal) {
+  fincaSel.value = finca;
+  editandoFinca.value = false;
+  errorEdicionFinca.value = '';
+  vista.value = 'finca-detalle';
+}
+
+function abrirModalFinca() {
+  errorFinca.value = '';
+  nuevaFinca.value = {
+    nombre: '',
+    ubicacion: '',
+  };
+  mostrarModal.value = true;
+}
+
+function cerrarModalFinca() {
+  mostrarModal.value = false;
+  errorFinca.value = '';
+  nuevaFinca.value = {
+    nombre: '',
+    ubicacion: '',
+  };
+}
+
+async function vincularFinca() {
+  errorFinca.value = '';
+
   if (!nuevaFinca.value.nombre.trim()) {
-    await mostrarToast('Ingresa el nombre de la finca.', 'warning');
+    errorFinca.value = 'Ingresa el nombre de la finca.';
     return;
   }
 
-  fincas.value.push({ ...nuevaFinca.value });
-  totalCabezas.value = fincas.value.reduce(
-    (s: number, f: FincaLocal) => s + f.cabezas,
-    0
-  );
+  if (!nuevaFinca.value.ubicacion.trim()) {
+    errorFinca.value = 'Ingresa la ubicación de la finca.';
+    return;
+  }
 
-  mostrarModal.value = false;
-  nuevaFinca.value = {
-    nombre: '',
-    cabezas: 0,
+  const token = obtenerToken();
+
+  if (!token) {
+    limpiarDatosLocalesSesion();
+    router.replace('/login');
+    return;
+  }
+
+  guardandoFinca.value = true;
+
+  try {
+    const response = await fetch(`${API_URL}/fincas`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        nombre: nuevaFinca.value.nombre.trim(),
+        ubicacion: nuevaFinca.value.ubicacion.trim(),
+      }),
+    });
+
+    const data = await response.json();
+
+    if (response.status === 401) {
+      limpiarDatosLocalesSesion();
+      router.replace('/login');
+      return;
+    }
+
+    if (!response.ok || !data.exito) {
+      throw new Error(extraerErrores(data, 'No se pudo crear la finca.'));
+    }
+
+    cerrarModalFinca();
+
+    await recargarVista();
+
+    vista.value = 'hacienda';
+
+    await mostrarToast('Finca registrada correctamente.', 'success');
+  } catch (error: any) {
+    console.error('Error creando finca:', error);
+    errorFinca.value = error.message || 'No se pudo crear la finca.';
+  } finally {
+    guardandoFinca.value = false;
+  }
+}
+
+function activarEdicionFinca() {
+  if (!fincaSel.value) {
+    return;
+  }
+
+  errorEdicionFinca.value = '';
+
+  formFinca.value = {
+    nombre: fincaSel.value.nombre || '',
+    ubicacion: fincaSel.value.ubicacion || '',
   };
 
-  await mostrarToast('Finca vinculada exitosamente.', 'success');
-};
+  editandoFinca.value = true;
+}
 
-const cerrarSesion = async () => {
+function cancelarEdicionFinca() {
+  editandoFinca.value = false;
+  errorEdicionFinca.value = '';
+
+  if (fincaSel.value) {
+    formFinca.value = {
+      nombre: fincaSel.value.nombre || '',
+      ubicacion: fincaSel.value.ubicacion || '',
+    };
+  }
+}
+
+function volverAFincas() {
+  editandoFinca.value = false;
+  errorEdicionFinca.value = '';
+  vista.value = 'hacienda';
+}
+
+async function guardarEdicionFinca() {
+  if (!fincaSel.value?.id) {
+    errorEdicionFinca.value = 'No se pudo identificar la finca seleccionada.';
+    return;
+  }
+
+  if (!formFinca.value.nombre.trim()) {
+    errorEdicionFinca.value = 'Ingresa el nombre de la finca.';
+    return;
+  }
+
+  if (!formFinca.value.ubicacion.trim()) {
+    errorEdicionFinca.value = 'Ingresa la ubicación de la finca.';
+    return;
+  }
+
+  const token = obtenerToken();
+
+  if (!token) {
+    limpiarDatosLocalesSesion();
+    router.replace('/login');
+    return;
+  }
+
+  guardandoEdicionFinca.value = true;
+  errorEdicionFinca.value = '';
+
+  try {
+    const fincaId = fincaSel.value.id;
+
+    const response = await fetch(`${API_URL}/fincas/${fincaId}`, {
+      method: 'PUT',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        nombre: formFinca.value.nombre.trim(),
+        ubicacion: formFinca.value.ubicacion.trim(),
+      }),
+    });
+
+    const data = await response.json();
+
+    if (response.status === 401) {
+      limpiarDatosLocalesSesion();
+      router.replace('/login');
+      return;
+    }
+
+    if (!response.ok || !data.exito) {
+      throw new Error(extraerErrores(data, 'No se pudo actualizar la finca.'));
+    }
+
+    editandoFinca.value = false;
+
+    await recargarVista();
+
+    const fincaActualizada = fincas.value.find(
+      (f) => Number(f.id) === Number(fincaId)
+    );
+
+    if (fincaActualizada) {
+      fincaSel.value = fincaActualizada;
+      vista.value = 'finca-detalle';
+    } else {
+      fincaSel.value = null;
+      vista.value = 'hacienda';
+    }
+
+    await mostrarToast('Finca actualizada correctamente.', 'success');
+  } catch (error: any) {
+    console.error('Error actualizando finca:', error);
+    errorEdicionFinca.value = error.message || 'No se pudo actualizar la finca.';
+  } finally {
+    guardandoEdicionFinca.value = false;
+  }
+}
+
+async function cerrarSesion() {
   const token = obtenerToken();
 
   try {
@@ -721,11 +1065,10 @@ const cerrarSesion = async () => {
   } catch (error) {
     console.warn('No se pudo cerrar sesión en el servidor:', error);
   } finally {
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    router.push('/login');
+    limpiarDatosLocalesSesion();
+    router.replace('/login');
   }
-};
+}
 </script>
 
 <style scoped>
@@ -733,7 +1076,6 @@ const cerrarSesion = async () => {
   --background: #F2F5F3;
 }
 
-/* App bar */
 .app-bar {
   background: #fff;
   padding: 12px 18px 10px;
@@ -776,7 +1118,6 @@ const cerrarSesion = async () => {
   font-size: 15px;
 }
 
-/* Sub bar */
 .sub-bar {
   background: #fff;
   padding: 12px 18px 10px;
@@ -805,7 +1146,6 @@ const cerrarSesion = async () => {
   flex: 1;
 }
 
-/* Loading / empty */
 .loading-box,
 .empty-box {
   background: #fff;
@@ -818,7 +1158,6 @@ const cerrarSesion = async () => {
   box-shadow: 0 1px 3px rgba(0,0,0,.06);
 }
 
-/* Profile hero */
 .profile-hero {
   background: #fff;
   padding: 24px 18px 20px;
@@ -912,12 +1251,10 @@ const cerrarSesion = async () => {
   color: #111827;
 }
 
-/* Body */
 .body-pad {
   padding: 16px 18px 32px;
 }
 
-/* Rol badge */
 .rol-badge {
   display: inline-flex;
   align-items: center;
@@ -942,7 +1279,6 @@ const cerrarSesion = async () => {
   background: linear-gradient(90deg, #4B5563, #111827);
 }
 
-/* List items */
 .list-item {
   display: flex;
   align-items: center;
@@ -994,7 +1330,6 @@ const cerrarSesion = async () => {
   font-size: 18px;
 }
 
-/* Toggle */
 .toggle {
   width: 46px;
   height: 26px;
@@ -1027,7 +1362,6 @@ const cerrarSesion = async () => {
   transform: translateX(-20px);
 }
 
-/* Buttons */
 .btn-logout {
   width: 100%;
   padding: 14px;
@@ -1106,7 +1440,6 @@ const cerrarSesion = async () => {
   margin-top: 6px;
 }
 
-/* Info card */
 .info-card {
   background: #fff;
   border-radius: 16px;
@@ -1184,7 +1517,19 @@ const cerrarSesion = async () => {
   color: #374151;
 }
 
-/* Profile card top */
+.feedback {
+  padding: 12px 14px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  font-size: .875rem;
+  font-weight: 700;
+}
+
+.feedback.error {
+  background: #FEE2E2;
+  color: #991B1B;
+}
+
 .profile-card-top {
   background: #fff;
   border-radius: 16px;
@@ -1227,7 +1572,6 @@ const cerrarSesion = async () => {
   padding-bottom: 4px;
 }
 
-/* Hacienda */
 .hac-metrics {
   display: grid;
   grid-template-columns: 1fr 1fr;

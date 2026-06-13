@@ -2,12 +2,14 @@
   <ion-page>
     <ion-content :fullscreen="true" class="page-bg">
 
-      <!-- ── App bar ── -->
       <div class="app-bar">
         <div>
           <div class="page-title">Mis Fincas</div>
-          <div class="page-sub">{{ fincas.length }} registrada{{ fincas.length !== 1 ? 's' : '' }}</div>
+          <div class="page-sub">
+            {{ fincas.length }} registrada{{ fincas.length !== 1 ? 's' : '' }}
+          </div>
         </div>
+
         <button class="btn-add" @click="abrirModal()">
           <span>＋</span> Nueva finca
         </button>
@@ -15,21 +17,30 @@
 
       <div class="body-pad">
 
-        <!-- ── Loading ── -->
-        <div v-if="loading" class="status-box status-loading">Cargando fincas…</div>
-
-        <!-- ── Error ── -->
-        <div v-else-if="errorGlobal" class="status-box status-error">{{ errorGlobal }}</div>
-
-        <!-- ── Empty state ── -->
-        <div v-else-if="fincas.length === 0" class="empty-state">
-          <div class="empty-ico">🏡</div>
-          <div class="empty-title">Sin fincas registradas</div>
-          <div class="empty-sub">Crea tu primera finca para comenzar a gestionar tus animales.</div>
-          <button class="btn-add-empty" @click="abrirModal()">＋ Crear finca</button>
+        <div v-if="loading" class="status-box status-loading">
+          Cargando fincas…
         </div>
 
-        <!-- ── Lista de fincas ── -->
+        <div v-else-if="errorGlobal" class="status-box status-error">
+          {{ errorGlobal }}
+        </div>
+
+        <div v-else-if="fincas.length === 0" class="empty-state">
+          <div class="empty-ico">🏡</div>
+
+          <div class="empty-title">
+            Sin fincas registradas
+          </div>
+
+          <div class="empty-sub">
+            Crea tu primera finca para comenzar a gestionar tus animales.
+          </div>
+
+          <button class="btn-add-empty" @click="abrirModal()">
+            ＋ Crear finca
+          </button>
+        </div>
+
         <div v-else>
           <div
             v-for="finca in fincas"
@@ -38,13 +49,33 @@
           >
             <div class="fc-header">
               <div class="fc-ico">🏡</div>
+
               <div class="fc-info">
-                <div class="fc-nombre">{{ finca.nombre }}</div>
-                <div class="fc-ubicacion">📍 {{ finca.ubicacion ?? 'Sin ubicación' }}</div>
+                <div class="fc-nombre">
+                  {{ finca.nombre }}
+                </div>
+
+                <div class="fc-ubicacion">
+                  📍 {{ finca.ubicacion ?? 'Sin ubicación' }}
+                </div>
               </div>
+
               <div class="fc-actions">
-                <button class="fc-btn fc-btn-edit" @click="abrirEditar(finca)" title="Editar">✏️</button>
-                <button class="fc-btn fc-btn-del"  @click="confirmarEliminar(finca)" title="Eliminar">🗑️</button>
+                <button
+                  class="fc-btn fc-btn-edit"
+                  @click="abrirEditar(finca)"
+                  title="Editar"
+                >
+                  ✏️
+                </button>
+
+                <button
+                  class="fc-btn fc-btn-del"
+                  @click="confirmarEliminar(finca)"
+                  title="Eliminar"
+                >
+                  🗑️
+                </button>
               </div>
             </div>
           </div>
@@ -52,9 +83,6 @@
 
       </div>
 
-      <!-- ════════════════════════════════════════════
-           MODAL: Crear / Editar finca
-           ════════════════════════════════════════════ -->
       <ion-modal :is-open="mostrarModal" @didDismiss="cerrarModal">
         <ion-content class="page-bg">
 
@@ -62,16 +90,21 @@
             <div class="page-title" style="font-size:1.125rem">
               {{ editando ? 'Editar finca' : 'Nueva finca' }}
             </div>
-            <button class="icon-btn" @click="cerrarModal">✕</button>
+
+            <button class="icon-btn" @click="cerrarModal">
+              ✕
+            </button>
           </div>
 
           <div class="body-pad">
 
-            <!-- Nombre -->
             <div class="nf-field">
-              <label class="nf-label">Nombre de la finca <span class="req">*</span></label>
+              <label class="nf-label">
+                Nombre de la finca <span class="req">*</span>
+              </label>
+
               <input
-                v-model="form.nombre"
+                v-model.trim="form.nombre"
                 type="text"
                 class="nf-input"
                 placeholder="Ej. Finca La Esperanza"
@@ -79,11 +112,13 @@
               />
             </div>
 
-            <!-- Ubicación -->
             <div class="nf-field">
-              <label class="nf-label">Ubicación <span class="req">*</span></label>
+              <label class="nf-label">
+                Ubicación <span class="req">*</span>
+              </label>
+
               <input
-                v-model="form.ubicacion"
+                v-model.trim="form.ubicacion"
                 type="text"
                 class="nf-input"
                 placeholder="Ej. San Carlos, Alajuela"
@@ -91,34 +126,64 @@
               />
             </div>
 
-            <!-- Error / Éxito -->
-            <div v-if="errorForm" class="feedback error">{{ errorForm }}</div>
-            <div v-if="successForm" class="feedback success">{{ successForm }}</div>
+            <div v-if="errorForm" class="feedback error">
+              {{ errorForm }}
+            </div>
 
-            <!-- Botón guardar -->
-            <button class="btn-save" :disabled="guardando" @click="guardar">
-              <span v-if="guardando">{{ editando ? 'Guardando…' : 'Creando…' }}</span>
-              <span v-else>{{ editando ? '💾 Guardar cambios' : '🏡 Crear finca' }}</span>
+            <div v-if="successForm" class="feedback success">
+              {{ successForm }}
+            </div>
+
+            <button
+              class="btn-save"
+              :disabled="guardando"
+              @click="guardar"
+            >
+              <span v-if="guardando">
+                {{ editando ? 'Guardando…' : 'Creando…' }}
+              </span>
+
+              <span v-else>
+                {{ editando ? '💾 Guardar cambios' : '🏡 Crear finca' }}
+              </span>
             </button>
 
           </div>
         </ion-content>
       </ion-modal>
 
-      <!-- ════════════════════════════════════════════
-           MODAL: Confirmar eliminación
-           ════════════════════════════════════════════ -->
-      <ion-modal :is-open="mostrarConfirm" @didDismiss="mostrarConfirm = false" class="confirm-modal">
+      <ion-modal
+        :is-open="mostrarConfirm"
+        @didDismiss="cerrarConfirmacion"
+        class="confirm-modal"
+      >
         <ion-content class="page-bg">
           <div class="confirm-box">
             <div class="confirm-ico">⚠️</div>
-            <div class="confirm-title">¿Eliminar finca?</div>
-            <div class="confirm-sub">
-              Se eliminará <strong>{{ fincaAEliminar?.nombre }}</strong> y todos sus datos asociados. Esta acción no se puede deshacer.
+
+            <div class="confirm-title">
+              ¿Eliminar finca?
             </div>
+
+            <div class="confirm-sub">
+              Se eliminará <strong>{{ fincaAEliminar?.nombre }}</strong>.
+              Antes de eliminar, verifica que no tenga animales asociados.
+            </div>
+
             <div class="confirm-btns">
-              <button class="confirm-cancel" @click="mostrarConfirm = false">Cancelar</button>
-              <button class="confirm-del" :disabled="eliminando" @click="eliminar">
+              <button
+                class="confirm-cancel"
+                :disabled="eliminando"
+                @click="cerrarConfirmacion"
+              >
+                Cancelar
+              </button>
+
+              <button
+                class="confirm-del"
+                :disabled="eliminando"
+                @click="eliminar"
+              >
                 {{ eliminando ? 'Eliminando…' : 'Sí, eliminar' }}
               </button>
             </div>
@@ -131,282 +196,634 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { IonPage, IonContent, IonModal } from '@ionic/vue';
-import { getFincasByUsuario, crearFinca, actualizarFinca, eliminarFinca, FincaDto } from '@/services/api';
+import {
+  ref,
+  onMounted,
+} from 'vue';
 
-// ── Estado general ─────────────────────────────────────────────────────────
-const fincas      = ref<FincaDto[]>([]);
-const loading     = ref(true);
+import {
+  useRouter,
+} from 'vue-router';
+
+import {
+  IonPage,
+  IonContent,
+  IonModal,
+  onIonViewWillEnter,
+} from '@ionic/vue';
+
+import {
+  getFincas,
+  crearFinca,
+  actualizarFinca,
+  eliminarFinca,
+  type FincaDto,
+} from '@/services/api';
+
+const router = useRouter();
+
+const fincas = ref<FincaDto[]>([]);
+const loading = ref(true);
 const errorGlobal = ref('');
 
-// ── Modal crear/editar ─────────────────────────────────────────────────────
 const mostrarModal = ref(false);
-const editando     = ref(false);
-const fincaEditId  = ref<number | null>(null);
-const form         = ref({ nombre: '', ubicacion: '' });
-const guardando    = ref(false);
-const errorForm    = ref('');
-const successForm  = ref('');
+const editando = ref(false);
+const fincaEditId = ref<number | null>(null);
 
-// ── Modal confirmar eliminación ────────────────────────────────────────────
-const mostrarConfirm  = ref(false);
-const fincaAEliminar  = ref<FincaDto | null>(null);
-const eliminando      = ref(false);
+const form = ref({
+  nombre: '',
+  ubicacion: '',
+});
 
-// ── User id del localStorage ───────────────────────────────────────────────
-let userId = 0;
+const guardando = ref(false);
+const errorForm = ref('');
+const successForm = ref('');
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-const cargarFincas = async () => {
-  if (!userId) return;
-  try {
-    fincas.value = (await getFincasByUsuario(userId)).datos || [];
-  } catch {
-    errorGlobal.value = 'No se pudieron cargar las fincas.';
+const mostrarConfirm = ref(false);
+const fincaAEliminar = ref<FincaDto | null>(null);
+const eliminando = ref(false);
+
+function obtenerToken(): string | null {
+  return localStorage.getItem('token');
+}
+
+function limpiarDatosLocalesSesion() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  localStorage.removeItem('perfil');
+  localStorage.removeItem('animalSel');
+  localStorage.removeItem('fincaSel');
+  localStorage.removeItem('pesajeSel');
+  sessionStorage.clear();
+}
+
+function cerrarSesionLocal() {
+  limpiarDatosLocalesSesion();
+  router.replace('/login');
+}
+
+async function cargarFincas() {
+  const token = obtenerToken();
+
+  if (!token) {
+    cerrarSesionLocal();
+    return;
   }
-};
 
-const abrirModal = () => {
-  editando.value   = false;
+  loading.value = true;
+  errorGlobal.value = '';
+
+  try {
+    const response = await getFincas();
+
+    fincas.value = Array.isArray(response)
+      ? response
+      : response.datos || [];
+  } catch (e: any) {
+    if (String(e?.message || '').includes('401')) {
+      cerrarSesionLocal();
+      return;
+    }
+
+    errorGlobal.value =
+      e?.message || 'No se pudieron cargar las fincas.';
+  } finally {
+    loading.value = false;
+  }
+}
+
+function abrirModal() {
+  editando.value = false;
   fincaEditId.value = null;
-  form.value        = { nombre: '', ubicacion: '' };
-  errorForm.value   = '';
+
+  form.value = {
+    nombre: '',
+    ubicacion: '',
+  };
+
+  errorForm.value = '';
   successForm.value = '';
   mostrarModal.value = true;
-};
+}
 
-const abrirEditar = (finca: FincaDto) => {
-  editando.value    = true;
+function abrirEditar(finca: FincaDto) {
+  editando.value = true;
   fincaEditId.value = finca.id;
-  form.value        = { nombre: finca.nombre, ubicacion: finca.ubicacion ?? '' };
-  errorForm.value   = '';
+
+  form.value = {
+    nombre: finca.nombre,
+    ubicacion: finca.ubicacion ?? '',
+  };
+
+  errorForm.value = '';
   successForm.value = '';
   mostrarModal.value = true;
-};
+}
 
-const cerrarModal = () => {
+function cerrarModal() {
   mostrarModal.value = false;
-};
+  errorForm.value = '';
+  successForm.value = '';
+  guardando.value = false;
 
-const guardar = async () => {
-  errorForm.value   = '';
+  form.value = {
+    nombre: '',
+    ubicacion: '',
+  };
+
+  editando.value = false;
+  fincaEditId.value = null;
+}
+
+function validarFormulario(): string | null {
+  if (!form.value.nombre.trim()) {
+    return 'El nombre es obligatorio.';
+  }
+
+  if (!form.value.ubicacion.trim()) {
+    return 'La ubicación es obligatoria.';
+  }
+
+  return null;
+}
+
+async function guardar() {
+  errorForm.value = '';
   successForm.value = '';
 
-  if (!form.value.nombre.trim())    { errorForm.value = 'El nombre es obligatorio.'; return; }
-  if (!form.value.ubicacion.trim()) { errorForm.value = 'La ubicación es obligatoria.'; return; }
+  const errorValidacion = validarFormulario();
+
+  if (errorValidacion) {
+    errorForm.value = errorValidacion;
+    return;
+  }
+
+  const token = obtenerToken();
+
+  if (!token) {
+    cerrarSesionLocal();
+    return;
+  }
 
   guardando.value = true;
+
   try {
     if (editando.value && fincaEditId.value) {
       await actualizarFinca(fincaEditId.value, {
-        nombre:    form.value.nombre.trim(),
+        nombre: form.value.nombre.trim(),
         ubicacion: form.value.ubicacion.trim(),
       });
+
       successForm.value = '✓ Finca actualizada correctamente.';
     } else {
       await crearFinca({
-        nombre:    form.value.nombre.trim(),
+        nombre: form.value.nombre.trim(),
         ubicacion: form.value.ubicacion.trim(),
-        user_id:   userId,
       });
+
       successForm.value = '✓ Finca creada correctamente.';
     }
 
     await cargarFincas();
-    setTimeout(() => cerrarModal(), 800);
 
-  } catch (e: unknown) {
-    errorForm.value = e instanceof Error ? e.message : 'Error al guardar la finca.';
+    setTimeout(() => {
+      cerrarModal();
+    }, 700);
+  } catch (e: any) {
+    if (String(e?.message || '').includes('401')) {
+      cerrarSesionLocal();
+      return;
+    }
+
+    errorForm.value =
+      e?.message || 'Error al guardar la finca.';
   } finally {
     guardando.value = false;
   }
-};
+}
 
-const confirmarEliminar = (finca: FincaDto) => {
+function confirmarEliminar(finca: FincaDto) {
   fincaAEliminar.value = finca;
   mostrarConfirm.value = true;
-};
+}
 
-const eliminar = async () => {
-  if (!fincaAEliminar.value) return;
+function cerrarConfirmacion() {
+  mostrarConfirm.value = false;
+  fincaAEliminar.value = null;
+  eliminando.value = false;
+}
+
+async function eliminar() {
+  if (!fincaAEliminar.value) {
+    return;
+  }
+
+  const token = obtenerToken();
+
+  if (!token) {
+    cerrarSesionLocal();
+    return;
+  }
+
   eliminando.value = true;
+  errorGlobal.value = '';
+
   try {
     await eliminarFinca(fincaAEliminar.value.id);
-    mostrarConfirm.value = false;
-    fincaAEliminar.value = null;
+
+    cerrarConfirmacion();
+
     await cargarFincas();
-  } catch (e: unknown) {
-    errorGlobal.value = e instanceof Error ? e.message : 'Error al eliminar la finca.';
-    mostrarConfirm.value = false;
+  } catch (e: any) {
+    if (String(e?.message || '').includes('401')) {
+      cerrarSesionLocal();
+      return;
+    }
+
+    errorGlobal.value =
+      e?.message || 'Error al eliminar la finca.';
+
+    cerrarConfirmacion();
   } finally {
     eliminando.value = false;
   }
-};
+}
 
-// ── Montaje ────────────────────────────────────────────────────────────────
-onMounted(async () => {
-  const raw = localStorage.getItem('user');
-  if (raw) userId = (JSON.parse(raw) as { id?: number }).id ?? 0;
+onMounted(() => {
+  cargarFincas();
+});
 
-  await cargarFincas();
-  loading.value = false;
+onIonViewWillEnter(() => {
+  cargarFincas();
 });
 </script>
 
 <style scoped>
-.page-bg { --background: #F2F5F3; }
+.page-bg {
+  --background: #F2F5F3;
+}
 
-/* ── App bar ──────────────────────────────────────────────────────────── */
 .app-bar {
   background: #fff;
   padding: 14px 18px 12px;
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   border-bottom: 1px solid #E5E7EB;
 }
-.page-title { font-size: 1.25rem; font-weight: 800; color: #1A3D28; }
-.page-sub   { font-size: .75rem; color: #6B7280; margin-top: 1px; }
+
+.page-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #1A3D28;
+}
+
+.page-sub {
+  font-size: .75rem;
+  color: #6B7280;
+  margin-top: 1px;
+}
 
 .btn-add {
-  display: flex; align-items: center; gap: 5px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
   padding: 8px 14px;
   background: linear-gradient(135deg, #1E5631, #3A9E61);
-  color: #fff; font-size: .8125rem; font-weight: 700;
-  border: none; border-radius: 10px; cursor: pointer;
+  color: #fff;
+  font-size: .8125rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
   font-family: inherit;
   box-shadow: 0 2px 8px rgba(30,86,49,.3);
   transition: opacity .2s;
 }
-.btn-add:hover { opacity: .9; }
+
+.btn-add:hover {
+  opacity: .9;
+}
 
 .icon-btn {
-  width: 34px; height: 34px; border-radius: 10px;
-  background: #F2F5F3; border: none; cursor: pointer; font-size: 15px;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #F2F5F3;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
 }
 
-/* ── Body ─────────────────────────────────────────────────────────────── */
-.body-pad { padding: 18px 18px 32px; }
+.body-pad {
+  padding: 18px 18px 32px;
+}
 
-/* ── Status ───────────────────────────────────────────────────────────── */
 .status-box {
-  padding: 13px 16px; border-radius: 12px;
-  font-size: .875rem; font-weight: 600; margin-bottom: 12px;
+  padding: 13px 16px;
+  border-radius: 12px;
+  font-size: .875rem;
+  font-weight: 600;
+  margin-bottom: 12px;
 }
-.status-loading { background: #F2F5F3; color: #374151; border: 1px solid #E5E7EB; }
-.status-error   { background: #FEE2E2; color: #B91C1C; border: 1px solid #FECACA; }
 
-/* ── Empty state ──────────────────────────────────────────────────────── */
-.empty-state {
-  display: flex; flex-direction: column; align-items: center;
-  padding: 56px 24px 32px; text-align: center;
+.status-loading {
+  background: #F2F5F3;
+  color: #374151;
+  border: 1px solid #E5E7EB;
 }
-.empty-ico   { font-size: 3.5rem; margin-bottom: 12px; }
-.empty-title { font-size: 1.125rem; font-weight: 800; color: #1A3D28; margin-bottom: 6px; }
-.empty-sub   { font-size: .875rem; color: #6B7280; line-height: 1.5; margin-bottom: 24px; max-width: 260px; }
+
+.status-error {
+  background: #FEE2E2;
+  color: #B91C1C;
+  border: 1px solid #FECACA;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 56px 24px 32px;
+  text-align: center;
+}
+
+.empty-ico {
+  font-size: 3.5rem;
+  margin-bottom: 12px;
+}
+
+.empty-title {
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: #1A3D28;
+  margin-bottom: 6px;
+}
+
+.empty-sub {
+  font-size: .875rem;
+  color: #6B7280;
+  line-height: 1.5;
+  margin-bottom: 24px;
+  max-width: 260px;
+}
+
 .btn-add-empty {
   padding: 13px 28px;
   background: linear-gradient(135deg, #1E5631, #3A9E61);
-  color: #fff; font-size: .9375rem; font-weight: 700;
-  border: none; border-radius: 14px; cursor: pointer;
-  font-family: inherit; box-shadow: 0 4px 14px rgba(30,86,49,.3);
+  color: #fff;
+  font-size: .9375rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 4px 14px rgba(30,86,49,.3);
   transition: opacity .2s;
 }
-.btn-add-empty:hover { opacity: .9; }
 
-/* ── Finca card ───────────────────────────────────────────────────────── */
+.btn-add-empty:hover {
+  opacity: .9;
+}
+
 .finca-card {
-  background: #fff; border-radius: 16px;
+  background: #fff;
+  border-radius: 16px;
   box-shadow: 0 2px 8px rgba(0,0,0,.07);
-  margin-bottom: 12px; overflow: hidden;
+  margin-bottom: 12px;
+  overflow: hidden;
   transition: box-shadow .2s;
 }
-.finca-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.1); }
+
+.finca-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,.1);
+}
 
 .fc-header {
-  display: flex; align-items: center; gap: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   padding: 16px;
 }
+
 .fc-ico {
-  width: 48px; height: 48px; border-radius: 13px; flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 13px;
+  flex-shrink: 0;
   background: linear-gradient(135deg, #EEF9F2, #D8F3DC);
   border: 1.5px solid #B7E5CC;
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 22px;
 }
-.fc-info { flex: 1; min-width: 0; }
-.fc-nombre    { font-size: 1rem; font-weight: 800; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fc-ubicacion { font-size: .75rem; color: #6B7280; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.fc-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.fc-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.fc-nombre {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fc-ubicacion {
+  font-size: .75rem;
+  color: #6B7280;
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fc-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 .fc-btn {
-  width: 32px; height: 32px; border-radius: 9px;
-  border: none; cursor: pointer; font-size: 14px;
-  display: flex; align-items: center; justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: background .15s;
 }
-.fc-btn-edit { background: #EEF9F2; }
-.fc-btn-edit:hover { background: #D8F3DC; }
-.fc-btn-del  { background: #FEE2E2; }
-.fc-btn-del:hover  { background: #FECACA; }
 
-/* ── Modal form ───────────────────────────────────────────────────────── */
-.nf-field { margin-bottom: 16px; }
-.nf-label {
-  display: block; font-size: .8125rem; font-weight: 700;
-  color: #374151; margin-bottom: 6px;
+.fc-btn-edit {
+  background: #EEF9F2;
 }
-.req { color: #EF4444; }
+
+.fc-btn-edit:hover {
+  background: #D8F3DC;
+}
+
+.fc-btn-del {
+  background: #FEE2E2;
+}
+
+.fc-btn-del:hover {
+  background: #FECACA;
+}
+
+.nf-field {
+  margin-bottom: 16px;
+}
+
+.nf-label {
+  display: block;
+  font-size: .8125rem;
+  font-weight: 700;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.req {
+  color: #EF4444;
+}
+
 .nf-input {
-  width: 100%; padding: 12px 14px;
-  border: 1.5px solid #E5E7EB; border-radius: 12px;
-  font-size: .9375rem; color: #111827; background: #F9FAFB;
-  outline: none; font-family: inherit;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid #E5E7EB;
+  border-radius: 12px;
+  font-size: .9375rem;
+  color: #111827;
+  background: #F9FAFB;
+  outline: none;
+  font-family: inherit;
   transition: border-color .15s, background .15s;
   box-sizing: border-box;
 }
-.nf-input:focus { border-color: #1E5631; background: #fff; }
+
+.nf-input:focus {
+  border-color: #1E5631;
+  background: #fff;
+}
 
 .feedback {
-  padding: 10px 14px; border-radius: 10px;
-  font-size: .8125rem; font-weight: 600; margin-bottom: 14px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: .8125rem;
+  font-weight: 600;
+  margin-bottom: 14px;
 }
-.success { background: #EEF9F2; color: #1E5631; border: 1px solid #D8F3DC; }
-.error   { background: #FEE2E2; color: #B91C1C; border: 1px solid #FECACA; }
+
+.success {
+  background: #EEF9F2;
+  color: #1E5631;
+  border: 1px solid #D8F3DC;
+}
+
+.error {
+  background: #FEE2E2;
+  color: #B91C1C;
+  border: 1px solid #FECACA;
+}
 
 .btn-save {
-  width: 100%; padding: 15px;
+  width: 100%;
+  padding: 15px;
   background: linear-gradient(135deg, #1E5631, #3A9E61);
-  color: #fff; font-size: .9375rem; font-weight: 700;
-  border: none; border-radius: 14px; cursor: pointer;
-  font-family: inherit; box-shadow: 0 4px 14px rgba(30,86,49,.3);
+  color: #fff;
+  font-size: .9375rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 4px 14px rgba(30,86,49,.3);
   transition: opacity .2s;
 }
-.btn-save:disabled { opacity: .65; cursor: not-allowed; }
 
-/* ── Confirm modal ────────────────────────────────────────────────────── */
-.confirm-box {
-  display: flex; flex-direction: column; align-items: center;
-  padding: 48px 28px 36px; text-align: center;
+.btn-save:disabled {
+  opacity: .65;
+  cursor: not-allowed;
 }
-.confirm-ico   { font-size: 3rem; margin-bottom: 14px; }
-.confirm-title { font-size: 1.25rem; font-weight: 800; color: #111827; margin-bottom: 8px; }
-.confirm-sub   { font-size: .875rem; color: #6B7280; line-height: 1.55; margin-bottom: 28px; max-width: 280px; }
-.confirm-btns  { display: flex; gap: 10px; width: 100%; max-width: 320px; }
+
+.confirm-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 28px 36px;
+  text-align: center;
+}
+
+.confirm-ico {
+  font-size: 3rem;
+  margin-bottom: 14px;
+}
+
+.confirm-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #111827;
+  margin-bottom: 8px;
+}
+
+.confirm-sub {
+  font-size: .875rem;
+  color: #6B7280;
+  line-height: 1.55;
+  margin-bottom: 28px;
+  max-width: 280px;
+}
+
+.confirm-btns {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  max-width: 320px;
+}
+
 .confirm-cancel {
-  flex: 1; padding: 13px;
-  background: #F2F5F3; border: 1.5px solid #E5E7EB;
-  color: #374151; font-size: .9375rem; font-weight: 700;
-  border-radius: 14px; cursor: pointer; font-family: inherit;
+  flex: 1;
+  padding: 13px;
+  background: #F2F5F3;
+  border: 1.5px solid #E5E7EB;
+  color: #374151;
+  font-size: .9375rem;
+  font-weight: 700;
+  border-radius: 14px;
+  cursor: pointer;
+  font-family: inherit;
   transition: background .15s;
 }
-.confirm-cancel:hover { background: #E5E7EB; }
+
+.confirm-cancel:hover {
+  background: #E5E7EB;
+}
+
 .confirm-del {
-  flex: 1; padding: 13px;
-  background: #EF4444; border: none;
-  color: #fff; font-size: .9375rem; font-weight: 700;
-  border-radius: 14px; cursor: pointer; font-family: inherit;
+  flex: 1;
+  padding: 13px;
+  background: #EF4444;
+  border: none;
+  color: #fff;
+  font-size: .9375rem;
+  font-weight: 700;
+  border-radius: 14px;
+  cursor: pointer;
+  font-family: inherit;
   transition: opacity .15s;
 }
-.confirm-del:disabled { opacity: .65; cursor: not-allowed; }
-.confirm-del:not(:disabled):hover { opacity: .9; }
+
+.confirm-del:disabled {
+  opacity: .65;
+  cursor: not-allowed;
+}
+
+.confirm-del:not(:disabled):hover {
+  opacity: .9;
+}
 </style>
