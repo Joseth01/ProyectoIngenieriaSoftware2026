@@ -15,6 +15,49 @@
 
       <div class="body-pad">
 
+        <!-- BANNER SIN CONEXIÓN -->
+        <div v-if="!online" class="offline-banner">
+          📡 Sin conexión — toma la foto normalmente; se guardará sola y podrás analizarla cuando vuelva la señal.
+        </div>
+
+        <!-- CAPTURAS PENDIENTES -->
+        <div v-if="pendientes.length > 0" class="pend-card">
+          <div class="pend-header">
+            <span class="pend-title">📥 Capturas pendientes</span>
+            <span class="pend-count">{{ pendientes.length }}</span>
+          </div>
+
+          <div
+            v-for="captura in pendientes"
+            :key="captura.id"
+            class="pend-item"
+          >
+            <div class="pend-info">
+              <div class="pend-name">🐄 {{ captura.animalNombre }}</div>
+              <div class="pend-fecha">Capturada el {{ captura.fecha }}</div>
+            </div>
+
+            <button
+              class="pend-btn pend-btn-go"
+              :disabled="!online || estado === 'analizando'"
+              @click="cargarPendiente(captura)"
+            >
+              Analizar
+            </button>
+
+            <button
+              class="pend-btn pend-btn-del"
+              @click="descartarPendiente(captura.id)"
+            >
+              🗑
+            </button>
+          </div>
+
+          <div v-if="!online" class="pend-hint">
+            Se podrán analizar cuando haya conexión.
+          </div>
+        </div>
+
         <div class="animal-card" @click="mostrarSelector = true">
           <div class="anim-emo">
             {{ animalSel ? 'AN' : '+' }}
@@ -568,7 +611,8 @@
 import {
   ref,
   computed,
-  onMounted
+  onMounted,
+  onUnmounted
 } from 'vue';
 
 import {
@@ -598,6 +642,14 @@ import {
   estimarPesoPorImagen,
   confirmarPesajeIA
 } from '@/services/api';
+
+import {
+  type CapturaPendiente,
+  guardarCaptura,
+  listarCapturas,
+  eliminarCaptura,
+  generarIdCaptura
+} from '@/services/offlineQueue';
 
 const PESO_MINIMO = 50;
 const PESO_MAXIMO = 1200;
@@ -650,6 +702,117 @@ const alzada = ref<number | null>(null);
 
 const mensajeAnalisis = ref('Analizando imagen...');
 let timerAnalisis: ReturnType<typeof setTimeout> | null = null;
+
+// ── Modo offline ─────────────────────────────────────────────────────────────
+const online = ref(navigator.onLine);
+const pendientes = ref<CapturaPendiente[]>([]);
+const errorRed = ref(false);
+
+// id de la captura pendiente cargada en el flujo actual (para borrarla al guardar)
+const capturaActualId = ref<string | null>(null);
+
+// fecha original de la captura (si viene de la cola, se respeta el día de la foto)
+const fechaCaptura = ref<string | null>(null);
+
+function alVolverOnline() {
+  online.value = true;
+  errorRed.value = false;
+
+  if (pendientes.value.length > 0) {
+    feedbackMsg.value =
+      `📡 Conexión recuperada. Tienes ${pendientes.value.length} captura(s) pendiente(s) por analizar.`;
+    feedbackOk.value = true;
+  }
+}
+
+function alPerderConexion() {
+  online.value = false;
+}
+
+async function refrescarPendientes() {
+  try {
+    pendientes.value = await listarCapturas();
+  } catch (error) {
+    console.error('Error leyendo capturas pendientes:', error);
+  }
+}
+
+async function guardarPendiente() {
+  if (!animalSel.value || !imagenBlob.value) {
+    return;
+  }
+
+  // Si la captura ya estaba en la cola (reintento fallido), no duplicarla
+  if (capturaActualId.value) {
+    feedbackMsg.value =
+      '📡 Aún no hay conexión. La captura sigue guardada en pendientes.';
+    feedbackOk.value = false;
+    return;
+  }
+
+  try {
+    await guardarCaptura({
+      id: generarIdCaptura(),
+      animalId: animalSel.value.id,
+      animalNombre: nombreAnimal(animalSel.value),
+      fecha: new Date().toISOString().slice(0, 10),
+      creadoEn: Date.now(),
+      imagen: imagenBlob.value
+    });
+
+    await refrescarPendientes();
+    reiniciar();
+    errorRed.value = false;
+
+    feedbackMsg.value =
+      '💾 Sin conexión: la captura se guardó automáticamente. Se podrá analizar cuando vuelva la señal.';
+    feedbackOk.value = true;
+
+  } catch (error) {
+    console.error('Error guardando captura offline:', error);
+    feedbackMsg.value =
+      'No se pudo guardar la captura en el dispositivo.';
+    feedbackOk.value = false;
+  }
+}
+
+function cargarPendiente(captura: CapturaPendiente) {
+  // Restaurar el animal: buscarlo en la lista actual
+  const animal =
+    animales.value.find((a) => a.id === captura.animalId) ?? null;
+
+  if (!animal) {
+    feedbackMsg.value =
+      `El animal "${captura.animalNombre}" ya no existe en tu inventario.`;
+    feedbackOk.value = false;
+    return;
+  }
+
+  animalSel.value = animal;
+  imagenBlob.value = captura.imagen;
+  imagenPreview.value = URL.createObjectURL(captura.imagen);
+  capturaActualId.value = captura.id;
+  fechaCaptura.value = captura.fecha;
+  estado.value = 'idle';
+
+  feedbackMsg.value =
+    '✓ Captura cargada. Toca el botón para analizarla.';
+  feedbackOk.value = true;
+}
+
+async function descartarPendiente(id: string) {
+  try {
+    await eliminarCaptura(id);
+    await refrescarPendientes();
+
+    if (capturaActualId.value === id) {
+      capturaActualId.value = null;
+      fechaCaptura.value = null;
+    }
+  } catch (error) {
+    console.error('Error eliminando captura:', error);
+  }
+}
 
 const nuevoAnimal = ref({
   numero_arete: '',
@@ -979,6 +1142,12 @@ async function analizarImagen() {
     return;
   }
 
+  // Sin señal: guardar automáticamente en la cola offline en lugar de intentar
+  if (!navigator.onLine) {
+    await guardarPendiente();
+    return;
+  }
+
   estado.value = 'analizando';
   feedbackMsg.value = '';
   mensajeAnalisis.value = 'Analizando imagen...';
@@ -1045,6 +1214,22 @@ async function analizarImagen() {
   } catch (error: any) {
     estado.value = 'idle';
 
+    // Error de red (sin señal o servidor inaccesible): guardar automáticamente
+    const esErrorRed =
+      !navigator.onLine ||
+      error instanceof TypeError ||
+      /failed to fetch|network/i.test(error?.message || '');
+
+    if (esErrorRed) {
+      errorRed.value = true;
+      if (timerAnalisis) {
+        clearTimeout(timerAnalisis);
+        timerAnalisis = null;
+      }
+      await guardarPendiente();
+      return;
+    }
+
     feedbackMsg.value =
       error?.message ||
       'Error al estimar el peso con IA.';
@@ -1080,6 +1265,8 @@ function reiniciar() {
   alzada.value = null;
 
   mostrarConfirmacion.value = false;
+  capturaActualId.value = null;
+  fechaCaptura.value = null;
 }
 
 function limpiarDespuesDeGuardarPesaje() {
@@ -1102,6 +1289,9 @@ function limpiarDespuesDeGuardarPesaje() {
   mostrarCrearAnimal.value = false;
 
   busqueda.value = '';
+
+  capturaActualId.value = null;
+  fechaCaptura.value = null;
 
   nuevoAnimal.value = {
     numero_arete: '',
@@ -1172,8 +1362,15 @@ async function guardar() {
       animal_id: animalSel.value.id,
       peso_estimado: pesoEstimado.value,
       peso_real: pesoReal,
-      fecha: hoy,
+      // Si la captura vino de la cola offline, se respeta el día de la foto
+      fecha: fechaCaptura.value ?? hoy,
     });
+
+    // Si era una captura pendiente, sacarla de la cola offline
+    if (capturaActualId.value) {
+      await eliminarCaptura(capturaActualId.value);
+      await refrescarPendientes();
+    }
 
     await cargarDatos();
 
@@ -1197,6 +1394,15 @@ async function guardar() {
 
 onMounted(() => {
   cargarDatos();
+  refrescarPendientes();
+
+  window.addEventListener('online', alVolverOnline);
+  window.addEventListener('offline', alPerderConexion);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('online', alVolverOnline);
+  window.removeEventListener('offline', alPerderConexion);
 });
 </script>
 
@@ -1982,6 +2188,107 @@ onMounted(() => {
 
 .confirm-metrics {
   margin-top: 8px;
+}
+
+/* ── Modo offline ── */
+.offline-banner {
+  background: #FFF7ED;
+  border: 1.5px solid #FDBA74;
+  color: #9A3412;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: .78rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.pend-card {
+  background: #ffffff;
+  border: 1.5px solid #FDE68A;
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.07);
+}
+
+.pend-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.pend-title {
+  font-size: .8125rem;
+  font-weight: 800;
+  color: #92400E;
+}
+
+.pend-count {
+  background: #FEF3C7;
+  border: 1px solid #FDE68A;
+  color: #92400E;
+  border-radius: 9999px;
+  padding: 1px 9px;
+  font-size: .6875rem;
+  font-weight: 800;
+}
+
+.pend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid #F3F4F6;
+}
+
+.pend-info {
+  flex: 1;
+}
+
+.pend-name {
+  font-size: .8125rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.pend-fecha {
+  font-size: .6875rem;
+  color: #6B7280;
+  margin-top: 1px;
+}
+
+.pend-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: .75rem;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+  flex-shrink: 0;
+}
+
+.pend-btn-go {
+  background: #1E5631;
+  color: #ffffff;
+}
+
+.pend-btn-go:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.pend-btn-del {
+  background: #FEE2E2;
+  color: #B91C1C;
+}
+
+.pend-hint {
+  font-size: .6875rem;
+  color: #92400E;
+  margin-top: 6px;
 }
 
 .slide-up-enter-active {

@@ -124,6 +124,29 @@
       </div>
 
       <div class="body-pad">
+
+        <!-- Recordatorio: capturas offline pendientes -->
+        <div
+          v-if="pendientesOffline > 0"
+          class="offline-reminder"
+          @click="goTo('pesaje-vivo')"
+        >
+          <div class="or-ico">📥</div>
+
+          <div class="or-body">
+            <div class="or-title">
+              {{ pendientesOffline === 1
+                ? 'Tienes 1 imagen guardada sin conexión'
+                : `Tienes ${pendientesOffline} imágenes guardadas sin conexión` }}
+            </div>
+            <div class="or-sub">
+              Toca aquí para analizarlas ahora
+            </div>
+          </div>
+
+          <span class="or-chev">›</span>
+        </div>
+
         <div class="sec-title">
           Acciones rápidas
         </div>
@@ -298,6 +321,8 @@ import {
   type FincaDto,
 } from '@/services/api';
 
+import { listarCapturas } from '@/services/offlineQueue';
+
 const PESO_MINIMO = 50;
 const PESO_MAXIMO = 1200;
 
@@ -313,6 +338,17 @@ const fincas = ref<FincaDto[]>([]);
 
 const loading = ref(true);
 const error = ref('');
+
+// Capturas guardadas sin conexión, pendientes de analizar
+const pendientesOffline = ref(0);
+
+async function contarPendientesOffline() {
+  try {
+    pendientesOffline.value = (await listarCapturas()).length;
+  } catch {
+    pendientesOffline.value = 0;
+  }
+}
 
 const saludoHora = computed(() => {
   const h = new Date().getHours();
@@ -531,10 +567,15 @@ function goTo(path: string) {
 
 onMounted(() => {
   cargarDashboard();
+  contarPendientesOffline();
+
+  // Refrescar el contador cuando el dispositivo recupere la señal
+  window.addEventListener('online', contarPendientesOffline);
 });
 
 onIonViewWillEnter(() => {
   cargarDashboard();
+  contarPendientesOffline();
 });
 </script>
 
@@ -650,6 +691,28 @@ onIonViewWillEnter(() => {
   font-size: .6875rem; color: #2D7A4A; font-weight: 600;
   font-family: inherit;
 }
+
+/* Recordatorio capturas offline */
+.offline-reminder {
+  display: flex; align-items: center; gap: 12px;
+  background: #FFF7ED;
+  border: 1.5px solid #FDBA74;
+  border-radius: 14px; padding: 13px 14px;
+  margin-bottom: 14px; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(154,52,18,.12);
+  transition: opacity .2s;
+}
+.offline-reminder:hover { opacity: .9; }
+.or-ico {
+  width: 40px; height: 40px; border-radius: 11px;
+  background: #FFEDD5;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; flex-shrink: 0;
+}
+.or-body { flex: 1; }
+.or-title { font-size: .8125rem; font-weight: 800; color: #9A3412; }
+.or-sub   { font-size: .6875rem; color: #C2410C; margin-top: 1px; }
+.or-chev  { color: #FDBA74; font-size: 20px; }
 
 /* AI banner */
 .ia-banner {
