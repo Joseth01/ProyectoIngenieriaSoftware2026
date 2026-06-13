@@ -176,7 +176,61 @@
                 Sin pesajes registrados.
               </div>
 
-              <div v-else class="hist-list">
+              <div v-else>
+
+                <!-- GRÁFICA DE EVOLUCIÓN DE PESO -->
+                <div v-if="graficaPeso.tieneGrafica" class="chart-card">
+                  <div class="chart-head">
+                    <span class="chart-title">Evolución de peso</span>
+                    <span
+                      class="chart-trend"
+                      :class="graficaPeso.cambioTotal >= 0 ? 'trend-up' : 'trend-dn'"
+                    >
+                      {{ graficaPeso.cambioTotal >= 0 ? '▲ +' : '▼ ' }}{{ graficaPeso.cambioTotal }} kg
+                    </span>
+                  </div>
+
+                  <svg
+                    class="chart-svg"
+                    :viewBox="`0 0 ${graficaPeso.W} ${graficaPeso.H}`"
+                    preserveAspectRatio="none"
+                    role="img"
+                    aria-label="Gráfica de evolución de peso del animal"
+                  >
+                    <defs>
+                      <linearGradient id="pesoFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#3A9E61" stop-opacity="0.28" />
+                        <stop offset="100%" stop-color="#3A9E61" stop-opacity="0" />
+                      </linearGradient>
+                    </defs>
+
+                    <polygon :points="graficaPeso.area" fill="url(#pesoFill)" />
+                    <polyline
+                      :points="graficaPeso.linea"
+                      fill="none"
+                      stroke="#1E5631"
+                      stroke-width="2.5"
+                      stroke-linejoin="round"
+                      stroke-linecap="round"
+                    />
+                    <circle
+                      v-for="(c, i) in graficaPeso.coords"
+                      :key="i"
+                      :cx="c.x"
+                      :cy="c.y"
+                      :r="i === graficaPeso.coords.length - 1 ? 4 : 2.5"
+                      :fill="i === graficaPeso.coords.length - 1 ? '#1E5631' : '#3A9E61'"
+                    />
+                  </svg>
+
+                  <div class="chart-foot">
+                    <span>{{ graficaPeso.primera }}</span>
+                    <span class="chart-range">{{ graficaPeso.min }}–{{ graficaPeso.max }} kg</span>
+                    <span>{{ graficaPeso.ultima }}</span>
+                  </div>
+                </div>
+
+                <div class="hist-list">
                 <div
                   v-for="item in historialCalculado"
                   :key="item.pesaje.id"
@@ -323,6 +377,7 @@
                       </button>
                     </div>
                   </div>
+                </div>
                 </div>
               </div>
 
@@ -802,6 +857,56 @@ const historialCalculado = computed(() => {
   }
 
   return descendente;
+});
+
+// Datos para el sparkline de evolución de peso (orden cronológico ascendente)
+const graficaPeso = computed(() => {
+  const serie = [...historialAnimal.value]
+    .sort((a, b) => ordenarPesajesAsc(a, b))
+    .map(p => ({ peso: pesoNumerico(p), fecha: p.fecha }))
+    .filter(p => pesoEnRango(p.peso));
+
+  // Se necesitan al menos 2 puntos válidos para dibujar una línea
+  if (serie.length < 2) {
+    return { tieneGrafica: false } as const;
+  }
+
+  const pesos = serie.map(s => s.peso);
+  const min = Math.min(...pesos);
+  const max = Math.max(...pesos);
+  const rango = max - min || 1;
+
+  const W = 300;
+  const H = 90;
+  const padX = 12;
+  const padY = 14;
+  const n = serie.length;
+
+  const coords = serie.map((s, i) => {
+    const x = padX + (i / (n - 1)) * (W - padX * 2);
+    const y = padY + (1 - (s.peso - min) / rango) * (H - padY * 2);
+    return { x: Number(x.toFixed(1)), y: Number(y.toFixed(1)), peso: s.peso };
+  });
+
+  const linea = coords.map(c => `${c.x},${c.y}`).join(' ');
+  // Área bajo la curva: misma línea cerrada hacia la base
+  const area = `${linea} ${coords[n - 1].x},${H} ${coords[0].x},${H}`;
+
+  const cambioTotal = serie[n - 1].peso - serie[0].peso;
+
+  return {
+    tieneGrafica: true,
+    W, H,
+    linea,
+    area,
+    coords,
+    min: Math.round(min),
+    max: Math.round(max),
+    primera: formatFecha(serie[0].fecha),
+    ultima: formatFecha(serie[n - 1].fecha),
+    cambioTotal: Math.round(cambioTotal),
+    puntos: n,
+  } as const;
 });
 
 const pesoEditadoFueraRango = computed(() => {
@@ -1843,6 +1948,65 @@ onIonViewWillEnter(() => {
   color: #9CA3AF;
   text-align: center;
   padding: 20px 0;
+}
+
+.chart-card {
+  background: white;
+  border-radius: 16px;
+  padding: 14px 16px 10px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+}
+
+.chart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.chart-title {
+  font-size: .8rem;
+  font-weight: 900;
+  color: #1A3D28;
+}
+
+.chart-trend {
+  font-size: .72rem;
+  font-weight: 900;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+
+.trend-up {
+  background: #DCFCE7;
+  color: #166534;
+}
+
+.trend-dn {
+  background: #FEE2E2;
+  color: #991B1B;
+}
+
+.chart-svg {
+  width: 100%;
+  height: 90px;
+  display: block;
+}
+
+.chart-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: .66rem;
+  color: #9CA3AF;
+  font-weight: 700;
+}
+
+.chart-range {
+  color: #1E5631;
+  font-weight: 900;
 }
 
 .hist-list {

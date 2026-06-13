@@ -242,10 +242,15 @@
               </div>
             </template>
 
-            <!-- Botón descarga individual -->
-            <button class="btn-pdf-sm" @click.stop="descargarPDFReporte(r.key)">
-              📄 Descargar PDF de este reporte
-            </button>
+            <!-- Botones de descarga individual -->
+            <div class="export-row">
+              <button class="btn-pdf-sm" @click.stop="descargarPDFReporte(r.key)">
+                📄 PDF
+              </button>
+              <button class="btn-csv-sm" @click.stop="descargarCSVReporte(r.key)">
+                📊 Exportar CSV
+              </button>
+            </div>
           </div>
         </template>
 
@@ -329,6 +334,7 @@ import {
   pesoNumerico, formatFecha,
   type PesajeDto, type AnimalDto, type ReporteDto,
 } from '@/services/api';
+import { descargarCSV } from '@/utils/csv';
 
 // ── Estado ──────────────────────────────────────────────────────────────────
 const pesajes       = ref<PesajeDto[]>([]);
@@ -702,6 +708,46 @@ const descargarPDFReporte = async (tipo: string) => {
   } catch { /* silencioso */ }
 };
 
+// ── Exportar a CSV (para Excel / contador) ──────────────────────────────────
+const descargarCSVReporte = (tipo: string) => {
+  const fecha = new Date().toISOString().slice(0, 10);
+
+  if (tipo === 'rendimiento') {
+    descargarCSV(`rendimiento-${fecha}`,
+      ['Mes', 'Pesajes', 'Peso promedio (kg)', 'Variacion %'],
+      datosRendimiento.value.map(m => [
+        m.mes, m.total,
+        m.prom > 0 ? m.prom.toFixed(0) : '',
+        formatDelta(m.delta),
+      ]));
+  } else if (tipo === 'inventario') {
+    descargarCSV(`inventario-${fecha}`,
+      ['Raza', 'Cantidad', 'Porcentaje hato', 'Peso promedio (kg)'],
+      datosInventario.value.map(r => [
+        r.raza, r.cantidad, `${r.pct}%`,
+        r.promedio !== '—' ? r.promedio : '',
+      ]));
+  } else if (tipo === 'salud') {
+    descargarCSV(`salud-${fecha}`,
+      ['Arete', 'Nombre', 'Finca', 'Ultimo peso', 'Fecha', 'Estado'],
+      datosSalud.value.map(a => [
+        a.arete, a.nombre, a.finca, a.ultimoPeso, a.fechaUltimo, a.estado ?? '',
+      ]));
+  } else if (tipo === 'fincas') {
+    descargarCSV(`fincas-${fecha}`,
+      ['Finca', 'Animales', 'Peso promedio (kg)', 'Peso total (kg)'],
+      datosFincas.value.map(f => [
+        f.finca, f.animales,
+        f.promedio !== '—' ? f.promedio : '',
+        Number(f.total) > 0 ? f.total : '',
+      ]));
+  }
+
+  pdfMsg.value = '¡Datos exportados a CSV!';
+  pdfOk.value  = true;
+  setTimeout(() => { pdfMsg.value = ''; }, 3000);
+};
+
 // ── PDF completo (todas las secciones) ──────────────────────────────────────
 const descargarPDFCompleto = async () => {
   const fecha = new Date().toLocaleDateString('es-CR');
@@ -1017,6 +1063,23 @@ onMounted(() => {
   font-family: inherit; transition: background .15s;
 }
 .btn-pdf-sm:hover { background: #D8F3DC; }
+
+/* Fila de exportación (PDF + CSV) */
+.export-row {
+  display: flex;
+  gap: 8px;
+}
+.export-row .btn-pdf-sm { flex: 1; }
+.btn-csv-sm {
+  flex: 1.4;
+  padding: 11px;
+  background: #FEF3C7; color: #92400E;
+  font-size: .8125rem; font-weight: 700;
+  border: 1.5px solid #FDE68A; border-radius: 10px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  font-family: inherit; transition: background .15s;
+}
+.btn-csv-sm:hover { background: #FDE68A; }
 
 /* Botón PDF completo */
 .btn-pdf {
