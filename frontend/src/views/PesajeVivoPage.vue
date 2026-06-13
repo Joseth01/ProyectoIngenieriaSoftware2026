@@ -505,13 +505,14 @@
                   v-model.number="pesoManual"
                   class="field-input"
                   type="number"
-                  min="1"
+                  min="50"
+                  max="1200"
                   step="0.01"
                 />
 
                 <div class="field-help">
                   Si estás de acuerdo con la IA, deja este valor igual.
-                  Si deseas corregirlo, escribe el peso final.
+                  Si deseas corregirlo, escribe el peso final. Debe estar entre 50 kg y 1200 kg.
                 </div>
               </div>
 
@@ -597,6 +598,9 @@ import {
   estimarPesoPorImagen,
   confirmarPesajeIA
 } from '@/services/api';
+
+const PESO_MINIMO = 50;
+const PESO_MAXIMO = 1200;
 
 const router = useRouter();
 
@@ -719,6 +723,12 @@ function nombreAnimal(animal: AnimalDto): string {
 
 function detalleAnimal(animal: AnimalDto): string {
   return `#${animal.numero_arete} · ${animal.raza?.nombre || 'Sin raza'}`;
+}
+
+function pesoEnRango(valor: number): boolean {
+  return Number.isFinite(valor) &&
+    valor >= PESO_MINIMO &&
+    valor <= PESO_MAXIMO;
 }
 
 async function cargarDatos() {
@@ -1057,15 +1067,49 @@ function cerrarConfirmacion() {
 function reiniciar() {
   estado.value = 'idle';
   feedbackMsg.value = '';
+  feedbackOk.value = false;
+
   imagenPreview.value = '';
   imagenBlob.value = null;
+
   pesoEstimado.value = 0;
   pesoManual.value = null;
   margen.value = 0;
   confianza.value = null;
   cc.value = '---';
   alzada.value = null;
+
   mostrarConfirmacion.value = false;
+}
+
+function limpiarDespuesDeGuardarPesaje() {
+  estado.value = 'idle';
+
+  animalSel.value = null;
+
+  imagenPreview.value = '';
+  imagenBlob.value = null;
+
+  pesoEstimado.value = 0;
+  pesoManual.value = null;
+  margen.value = 0;
+  confianza.value = null;
+  cc.value = '---';
+  alzada.value = null;
+
+  mostrarConfirmacion.value = false;
+  mostrarSelector.value = false;
+  mostrarCrearAnimal.value = false;
+
+  busqueda.value = '';
+
+  nuevoAnimal.value = {
+    numero_arete: '',
+    nombre: '',
+    raza_id: razas.value[0]?.id || 0,
+    fecha_nacimiento: hoy,
+    finca_id: fincas.value[0]?.id || 0,
+  };
 }
 
 async function guardar() {
@@ -1104,6 +1148,14 @@ async function guardar() {
     return;
   }
 
+  if (!pesoEnRango(Number(pesoManual.value))) {
+    feedbackMsg.value =
+      `El peso a guardar debe estar entre ${PESO_MINIMO} kg y ${PESO_MAXIMO} kg.`;
+
+    feedbackOk.value = false;
+    return;
+  }
+
   saving.value = true;
 
   try {
@@ -1123,17 +1175,14 @@ async function guardar() {
       fecha: hoy,
     });
 
-    feedbackMsg.value =
-      'Pesaje e imagen guardados correctamente.';
-
-    feedbackOk.value = true;
-    mostrarConfirmacion.value = false;
-
     await cargarDatos();
 
-    setTimeout(() => {
-      reiniciar();
-    }, 1200);
+    limpiarDespuesDeGuardarPesaje();
+
+    feedbackMsg.value =
+      'Pesaje e imagen guardados correctamente. Puedes realizar otro pesaje.';
+
+    feedbackOk.value = true;
 
   } catch (error: any) {
     feedbackMsg.value =

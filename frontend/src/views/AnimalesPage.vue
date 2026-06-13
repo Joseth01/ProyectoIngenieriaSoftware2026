@@ -10,8 +10,8 @@
           </p>
         </div>
 
-        <button class="reload-btn" @click="cargarTodo">
-          Actualizar
+        <button class="reload-btn" @click="abrirCrearAnimal">
+          Agregar animal
         </button>
       </div>
 
@@ -124,7 +124,7 @@
 
       </div>
 
-      <ion-modal :is-open="modalAbierto" @did-dismiss="cerrarModal">
+      <ion-modal :is-open="modalAbierto" @didDismiss="cerrarModal">
         <ion-content class="modal-content">
 
           <div class="modal-header">
@@ -280,14 +280,25 @@
                     <div class="edit-field">
                       <label>Fecha</label>
 
-                      <input
-                        ref="fechaPesajeInput"
-                        v-model="editPesajeForm.fecha"
-                        type="date"
-                        class="edit-date"
-                        :max="hoy"
-                        @click="abrirCalendarioPesaje"
-                      />
+                      <div class="date-field-wrap">
+                        <input
+                          ref="fechaPesajeInput"
+                          v-model="editPesajeForm.fecha"
+                          type="date"
+                          class="edit-date date-input-real"
+                          :max="hoy"
+                          @click="abrirCalendarioPesaje"
+                          @focus="abrirCalendarioPesaje"
+                        />
+
+                        <button
+                          type="button"
+                          class="date-picker-btn"
+                          @click="abrirCalendarioPesaje"
+                        >
+                          Seleccionar
+                        </button>
+                      </div>
                     </div>
 
                     <div v-if="editPesajeError" class="feedback error">
@@ -393,14 +404,25 @@
                 <div class="edit-field">
                   <label>Fecha de nacimiento</label>
 
-                  <input
-                    ref="fechaNacimientoInput"
-                    v-model="editAnimalForm.fecha_nacimiento"
-                    type="date"
-                    class="edit-date"
-                    :max="hoy"
-                    @click="abrirCalendarioFechaNacimiento"
-                  />
+                  <div class="date-field-wrap">
+                    <input
+                      ref="fechaNacimientoInput"
+                      v-model="editAnimalForm.fecha_nacimiento"
+                      type="date"
+                      class="edit-date date-input-real"
+                      :max="hoy"
+                      @click="abrirCalendarioFechaNacimiento"
+                      @focus="abrirCalendarioFechaNacimiento"
+                    />
+
+                    <button
+                      type="button"
+                      class="date-picker-btn"
+                      @click="abrirCalendarioFechaNacimiento"
+                    >
+                      Seleccionar
+                    </button>
+                  </div>
 
                   <div class="field-hint">
                     Selecciona la fecha desde el calendario para evitar formatos incorrectos.
@@ -461,14 +483,177 @@
         </ion-content>
       </ion-modal>
 
+      <ion-modal :is-open="modalCrearAbierto" @didDismiss="cerrarCrearAnimal">
+        <ion-content class="modal-content">
+
+          <div class="modal-header">
+            <div>
+              <h2 class="modal-title">
+                Nuevo animal
+              </h2>
+
+              <div class="modal-sub">
+                Registro sin peso inicial
+              </div>
+            </div>
+
+            <button class="close-btn" @click="cerrarCrearAnimal">
+              ×
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <div class="edit-box animal-edit-box">
+              <div class="sec-title">
+                Datos básicos
+              </div>
+
+              <div class="edit-field">
+                <label>Número de arete</label>
+
+                <input
+                  v-model.trim="nuevoAnimalForm.numero_arete"
+                  type="text"
+                  class="edit-date"
+                  placeholder="Ej. CR-001"
+                />
+              </div>
+
+              <div class="edit-field">
+                <label>Nombre del animal</label>
+
+                <input
+                  v-model.trim="nuevoAnimalForm.nombre"
+                  type="text"
+                  class="edit-date"
+                  placeholder="Ej. Canela"
+                />
+              </div>
+
+              <div class="edit-field">
+                <label>Raza</label>
+
+                <select
+                  v-model="nuevoAnimalForm.raza_id"
+                  class="edit-date"
+                >
+                  <option value="" disabled>
+                    Selecciona una raza
+                  </option>
+
+                  <option
+                    v-for="raza in razas"
+                    :key="raza.id"
+                    :value="raza.id"
+                  >
+                    {{ raza.nombre }}
+                  </option>
+                </select>
+              </div>
+
+              <div class="edit-field">
+                <label>Finca</label>
+
+                <select
+                  v-model="nuevoAnimalForm.finca_id"
+                  class="edit-date"
+                >
+                  <option value="" disabled>
+                    Selecciona una finca
+                  </option>
+
+                  <option
+                    v-for="finca in fincas"
+                    :key="finca.id"
+                    :value="finca.id"
+                  >
+                    {{ finca.nombre }}
+                  </option>
+                </select>
+
+                <div v-if="fincas.length === 0" class="field-hint">
+                  No tienes fincas registradas. Crea una finca desde el perfil antes de agregar animales.
+                </div>
+              </div>
+
+              <div class="edit-field">
+                <label>Fecha de nacimiento</label>
+
+                <div class="date-field-wrap">
+                  <input
+                    ref="fechaNacimientoNuevoInput"
+                    v-model="nuevoAnimalForm.fecha_nacimiento"
+                    type="date"
+                    class="edit-date date-input-real"
+                    :max="hoy"
+                    @click="abrirCalendarioNuevoNacimiento"
+                    @focus="abrirCalendarioNuevoNacimiento"
+                  />
+
+                  <button
+                    type="button"
+                    class="date-picker-btn"
+                    @click="abrirCalendarioNuevoNacimiento"
+                  >
+                    Seleccionar
+                  </button>
+                </div>
+
+                <div class="field-hint">
+                  El animal se registrará sin pesaje inicial.
+                </div>
+              </div>
+
+              <div v-if="crearAnimalError" class="feedback error">
+                {{ crearAnimalError }}
+              </div>
+
+              <div v-if="crearAnimalSuccess" class="feedback success">
+                {{ crearAnimalSuccess }}
+              </div>
+
+              <div class="edit-actions">
+                <button
+                  class="btn-outline"
+                  :disabled="guardandoNuevoAnimal"
+                  @click="cerrarCrearAnimal"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  class="btn-primary small"
+                  :disabled="guardandoNuevoAnimal || fincas.length === 0"
+                  @click="guardarNuevoAnimal"
+                >
+                  {{ guardandoNuevoAnimal ? 'Guardando...' : 'Agregar animal' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </ion-content>
+      </ion-modal>
+
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import {
+  ref,
+  computed,
+  onMounted,
+} from 'vue';
+
 import { useRouter } from 'vue-router';
-import { IonPage, IonContent, IonModal } from '@ionic/vue';
+
+import {
+  IonPage,
+  IonContent,
+  IonModal,
+  onIonViewWillEnter,
+} from '@ionic/vue';
 
 import {
   getAnimales,
@@ -477,10 +662,10 @@ import {
   getFincasByUsuario,
   pesoNumerico,
   formatFecha,
-  AnimalDto,
-  PesajeDto,
-  RazaDto,
-  FincaDto,
+  type AnimalDto,
+  type PesajeDto,
+  type RazaDto,
+  type FincaDto,
 } from '@/services/api';
 
 const PESO_MINIMO = 50;
@@ -502,6 +687,7 @@ const filtro = ref('todos');
 
 const animalSel = ref<AnimalDto | null>(null);
 const modalAbierto = ref(false);
+const modalCrearAbierto = ref(false);
 const modalModo = ref<'historial' | 'editar'>('historial');
 
 const historialAnimal = ref<PesajeDto[]>([]);
@@ -516,10 +702,15 @@ const guardandoAnimal = ref(false);
 const editAnimalError = ref('');
 const editAnimalSuccess = ref('');
 
+const guardandoNuevoAnimal = ref(false);
+const crearAnimalError = ref('');
+const crearAnimalSuccess = ref('');
+
 const hoy = new Date().toISOString().slice(0, 10);
 
 const fechaPesajeInput = ref<HTMLInputElement | null>(null);
 const fechaNacimientoInput = ref<HTMLInputElement | null>(null);
+const fechaNacimientoNuevoInput = ref<HTMLInputElement | null>(null);
 
 const editPesajeForm = ref<{
   peso_estimado: number | null;
@@ -547,6 +738,20 @@ const editAnimalForm = ref<{
   finca_id: '',
   fecha_nacimiento: hoy,
   estado: 'activo',
+});
+
+const nuevoAnimalForm = ref<{
+  numero_arete: string;
+  nombre: string;
+  raza_id: number | '';
+  finca_id: number | '';
+  fecha_nacimiento: string;
+}>({
+  numero_arete: '',
+  nombre: '',
+  raza_id: '',
+  finca_id: '',
+  fecha_nacimiento: hoy,
 });
 
 let userId: number | undefined;
@@ -623,6 +828,10 @@ function abrirCalendarioFechaNacimiento() {
   fechaNacimientoInput.value?.showPicker?.();
 }
 
+function abrirCalendarioNuevoNacimiento() {
+  fechaNacimientoNuevoInput.value?.showPicker?.();
+}
+
 function obtenerToken(): string | null {
   return localStorage.getItem('token');
 }
@@ -633,6 +842,21 @@ function obtenerUsuarioLocal(): any {
   } catch {
     return {};
   }
+}
+
+function limpiarDatosLocalesSesion() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  localStorage.removeItem('perfil');
+  localStorage.removeItem('animalSel');
+  localStorage.removeItem('fincaSel');
+  localStorage.removeItem('pesajeSel');
+  sessionStorage.clear();
+}
+
+function cerrarSesionLocal() {
+  limpiarDatosLocalesSesion();
+  router.replace('/login');
 }
 
 function pesoEnRango(valor: number): boolean {
@@ -906,6 +1130,127 @@ function cerrarModal() {
   editAnimalSuccess.value = '';
 }
 
+function abrirCrearAnimal() {
+  crearAnimalError.value = '';
+  crearAnimalSuccess.value = '';
+
+  nuevoAnimalForm.value = {
+    numero_arete: '',
+    nombre: '',
+    raza_id: razas.value[0]?.id || '',
+    finca_id: fincas.value[0]?.id || '',
+    fecha_nacimiento: hoy,
+  };
+
+  modalCrearAbierto.value = true;
+}
+
+function cerrarCrearAnimal() {
+  modalCrearAbierto.value = false;
+  crearAnimalError.value = '';
+  crearAnimalSuccess.value = '';
+
+  nuevoAnimalForm.value = {
+    numero_arete: '',
+    nombre: '',
+    raza_id: '',
+    finca_id: '',
+    fecha_nacimiento: hoy,
+  };
+}
+
+function validarNuevoAnimal(): string | null {
+  if (!nuevoAnimalForm.value.numero_arete.trim()) {
+    return 'El número de arete es obligatorio.';
+  }
+
+  if (!nuevoAnimalForm.value.nombre.trim()) {
+    return 'El nombre del animal es obligatorio.';
+  }
+
+  if (!nuevoAnimalForm.value.raza_id) {
+    return 'Selecciona una raza.';
+  }
+
+  if (!nuevoAnimalForm.value.finca_id) {
+    return 'Selecciona una finca.';
+  }
+
+  if (!nuevoAnimalForm.value.fecha_nacimiento) {
+    return 'Selecciona la fecha de nacimiento.';
+  }
+
+  if (nuevoAnimalForm.value.fecha_nacimiento > hoy) {
+    return 'La fecha de nacimiento no puede ser futura.';
+  }
+
+  return null;
+}
+
+async function guardarNuevoAnimal() {
+  const errorValidacion = validarNuevoAnimal();
+
+  if (errorValidacion) {
+    crearAnimalError.value = errorValidacion;
+    crearAnimalSuccess.value = '';
+    return;
+  }
+
+  const token = obtenerToken();
+
+  if (!token) {
+    cerrarSesionLocal();
+    return;
+  }
+
+  guardandoNuevoAnimal.value = true;
+  crearAnimalError.value = '';
+  crearAnimalSuccess.value = '';
+
+  try {
+    const response = await fetch(`${API_URL}/animales`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        numero_arete: nuevoAnimalForm.value.numero_arete.trim(),
+        nombre: nuevoAnimalForm.value.nombre.trim(),
+        raza_id: Number(nuevoAnimalForm.value.raza_id),
+        finca_id: Number(nuevoAnimalForm.value.finca_id),
+        fecha_nacimiento: nuevoAnimalForm.value.fecha_nacimiento,
+        estado: 'activo',
+      }),
+    });
+
+    const data = await response.json();
+
+    if (response.status === 401) {
+      cerrarSesionLocal();
+      return;
+    }
+
+    if (!response.ok || !data.exito) {
+      throw new Error(extraerErrores(data, 'No se pudo crear el animal.'));
+    }
+
+    crearAnimalSuccess.value = 'Animal agregado correctamente.';
+
+    await cargarTodo();
+
+    setTimeout(() => {
+      cerrarCrearAnimal();
+    }, 650);
+  } catch (e: any) {
+    crearAnimalError.value = e.message || 'No se pudo crear el animal.';
+    crearAnimalSuccess.value = '';
+  } finally {
+    guardandoNuevoAnimal.value = false;
+  }
+}
+
 function registrarPeso() {
   cerrarModal();
   router.push('/tabs/pesajes');
@@ -977,7 +1322,7 @@ async function guardarEdicionPesaje() {
   const token = obtenerToken();
 
   if (!token) {
-    editPesajeError.value = 'No se encontró sesión activa. Inicia sesión nuevamente.';
+    cerrarSesionLocal();
     return;
   }
 
@@ -1003,6 +1348,11 @@ async function guardarEdicionPesaje() {
     });
 
     const data = await response.json();
+
+    if (response.status === 401) {
+      cerrarSesionLocal();
+      return;
+    }
 
     if (!response.ok || !data.exito) {
       throw new Error(extraerErrores(data, 'No se pudo actualizar el pesaje.'));
@@ -1073,8 +1423,7 @@ async function guardarEdicionAnimal() {
   const token = obtenerToken();
 
   if (!token) {
-    editAnimalError.value = 'No se encontró sesión activa. Inicia sesión nuevamente.';
-    editAnimalSuccess.value = '';
+    cerrarSesionLocal();
     return;
   }
 
@@ -1106,6 +1455,11 @@ async function guardarEdicionAnimal() {
 
     const data = await response.json();
 
+    if (response.status === 401) {
+      cerrarSesionLocal();
+      return;
+    }
+
     if (!response.ok || !data.exito) {
       throw new Error(extraerErrores(data, 'No se pudo actualizar el animal.'));
     }
@@ -1132,6 +1486,13 @@ async function guardarEdicionAnimal() {
 }
 
 async function cargarTodo() {
+  const token = obtenerToken();
+
+  if (!token) {
+    cerrarSesionLocal();
+    return;
+  }
+
   loading.value = true;
   error.value = '';
 
@@ -1156,6 +1517,11 @@ async function cargarTodo() {
 
     await cargarHistorialesParaLista(animales.value);
   } catch (e: any) {
+    if (String(e?.message || '').includes('401')) {
+      cerrarSesionLocal();
+      return;
+    }
+
     error.value = e.message || 'No se pudieron cargar los animales.';
   } finally {
     loading.value = false;
@@ -1163,6 +1529,10 @@ async function cargarTodo() {
 }
 
 onMounted(() => {
+  cargarTodo();
+});
+
+onIonViewWillEnter(() => {
   cargarTodo();
 });
 </script>
@@ -1717,6 +2087,34 @@ select.edit-date {
 }
 
 .btn-primary:hover {
+  opacity: .94;
+}
+
+.date-field-wrap {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.date-input-real {
+  flex: 1;
+}
+
+.date-picker-btn {
+  height: 42px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 12px;
+  background: #1E5631;
+  color: #fff;
+  font-size: .75rem;
+  font-weight: 900;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.date-picker-btn:hover {
   opacity: .94;
 }
 </style>

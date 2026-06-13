@@ -3,11 +3,9 @@
     <ion-content :fullscreen="true" class="login-content">
       <div class="splash">
 
-        <!-- decorative circles -->
         <div class="deco deco-1"></div>
         <div class="deco deco-2"></div>
 
-        <!-- logo -->
         <div class="logo-wrap">
           <svg viewBox="0 0 50 50" fill="none" class="logo-svg">
             <ellipse cx="25" cy="32" rx="18" ry="11" fill="rgba(255,255,255,.18)" />
@@ -41,10 +39,8 @@
           Control inteligente de peso para tu ganado bovino
         </p>
 
-        <!-- form card -->
         <div class="form-card">
 
-          <!-- tabs login / registro -->
           <div class="tab-row">
             <button
               class="tab-btn"
@@ -53,6 +49,7 @@
             >
               Iniciar sesión
             </button>
+
             <button
               class="tab-btn"
               :class="{ active: modo === 'registro' }"
@@ -62,24 +59,26 @@
             </button>
           </div>
 
-          <!-- nombre completo (solo en registro) -->
           <div v-if="modo === 'registro'" class="field">
             <label class="field-label">Nombre completo</label>
+
             <div class="field-input-wrap">
               <span class="field-icon">👤</span>
+
               <input
-                v-model="nombre"
+                v-model.trim="nombre"
                 type="text"
                 class="field-input"
                 placeholder="Tu nombre"
+                autocomplete="name"
                 @keyup.enter="submit"
               />
             </div>
           </div>
 
-          <!-- selector de rol (solo en registro) -->
           <div v-if="modo === 'registro'" class="field">
             <label class="field-label">Soy…</label>
+
             <div class="rol-grid">
               <button
                 type="button"
@@ -91,6 +90,7 @@
                 <span class="rol-name">Ganadero</span>
                 <span class="rol-desc">Gestiono mi hato</span>
               </button>
+
               <button
                 type="button"
                 class="rol-card"
@@ -104,33 +104,38 @@
             </div>
           </div>
 
-          <!-- correo -->
           <div class="field">
             <label class="field-label">Correo electrónico</label>
+
             <div class="field-input-wrap">
               <span class="field-icon">✉</span>
+
               <input
-                v-model="email"
+                v-model.trim="email"
                 type="email"
                 class="field-input"
                 placeholder="tucorreo@ejemplo.com"
+                autocomplete="email"
                 @keyup.enter="submit"
               />
             </div>
           </div>
 
-          <!-- contraseña -->
           <div class="field">
             <label class="field-label">Contraseña</label>
+
             <div class="field-input-wrap">
               <span class="field-icon">🔒</span>
+
               <input
                 v-model="password"
                 :type="mostrarPassword ? 'text' : 'password'"
                 class="field-input"
                 placeholder="••••••••"
+                autocomplete="current-password"
                 @keyup.enter="submit"
               />
+
               <button
                 type="button"
                 class="toggle-eye"
@@ -141,28 +146,31 @@
             </div>
           </div>
 
-          <!-- confirmar contraseña (solo en registro) -->
           <div v-if="modo === 'registro'" class="field">
             <label class="field-label">Confirmar contraseña</label>
+
             <div class="field-input-wrap">
               <span class="field-icon">🔑</span>
+
               <input
                 v-model="confirmarPassword"
                 :type="mostrarPassword ? 'text' : 'password'"
                 class="field-input"
                 placeholder="••••••••"
+                autocomplete="new-password"
                 @keyup.enter="submit"
               />
             </div>
           </div>
 
-          <!-- mensaje de error -->
-          <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
+          <p v-if="errorMsg" class="error-msg">
+            {{ errorMsg }}
+          </p>
 
-          <!-- mensaje de éxito -->
-          <p v-if="successMsg" class="success-msg">{{ successMsg }}</p>
+          <p v-if="successMsg" class="success-msg">
+            {{ successMsg }}
+          </p>
 
-          <!-- botón principal -->
           <button
             class="btn-login"
             :disabled="loading"
@@ -171,6 +179,7 @@
             <span v-if="loading">
               {{ modo === 'login' ? 'Ingresando…' : 'Creando cuenta…' }}
             </span>
+
             <span v-else>
               {{ modo === 'login' ? 'Ingresar' : 'Crear cuenta' }}
             </span>
@@ -190,110 +199,199 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { IonPage, IonContent } from '@ionic/vue';
-import { loginUsuario, registrarUsuario, RolUsuario } from '@/services/api';
+import {
+  IonPage,
+  IonContent,
+  onIonViewWillEnter,
+} from '@ionic/vue';
+
+import {
+  loginUsuario,
+  registrarUsuario,
+  type RolUsuario,
+} from '@/services/api';
 
 const router = useRouter();
 
 type Modo = 'login' | 'registro';
 
-const modo             = ref<Modo>('login');
-const nombre           = ref('');
-const email            = ref('');
-const password         = ref('');
+const modo = ref<Modo>('login');
+const nombre = ref('');
+const email = ref('');
+const password = ref('');
 const confirmarPassword = ref('');
-const rol              = ref<RolUsuario>('ganadero');
-const mostrarPassword  = ref(false);
-const loading          = ref(false);
-const errorMsg         = ref('');
-const successMsg       = ref('');
+const rol = ref<RolUsuario>('ganadero');
+const mostrarPassword = ref(false);
+const loading = ref(false);
+const errorMsg = ref('');
+const successMsg = ref('');
 
-const limpiarMensajes = () => {
-  errorMsg.value  = '';
+function limpiarMensajes() {
+  errorMsg.value = '';
   successMsg.value = '';
-};
+}
 
-const cambiarModo = (nuevoModo: Modo) => {
+function limpiarFormulario() {
+  nombre.value = '';
+  email.value = '';
+  password.value = '';
+  confirmarPassword.value = '';
+  rol.value = 'ganadero';
+  mostrarPassword.value = false;
+  loading.value = false;
+  limpiarMensajes();
+}
+
+function limpiarSesionLocal() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  localStorage.removeItem('perfil');
+  localStorage.removeItem('animalSel');
+  localStorage.removeItem('fincaSel');
+  localStorage.removeItem('pesajeSel');
+  sessionStorage.clear();
+}
+
+function prepararLoginSeguro() {
+  limpiarSesionLocal();
+  limpiarFormulario();
+  modo.value = 'login';
+}
+
+function cambiarModo(nuevoModo: Modo) {
   modo.value = nuevoModo;
   limpiarMensajes();
-};
 
-const submit = () => {
-  if (modo.value === 'login') hacerLogin();
-  else hacerRegistro();
-};
+  password.value = '';
+  confirmarPassword.value = '';
+  mostrarPassword.value = false;
 
-// ── Login real ──────────────────────────────────────────────────────────────
-const hacerLogin = async () => {
-  if (!email.value || !password.value) {
+  if (nuevoModo === 'login') {
+    nombre.value = '';
+    rol.value = 'ganadero';
+  }
+}
+
+function submit() {
+  if (loading.value) {
+    return;
+  }
+
+  if (modo.value === 'login') {
+    hacerLogin();
+    return;
+  }
+
+  hacerRegistro();
+}
+
+function emailValido(valor: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor);
+}
+
+async function hacerLogin() {
+  limpiarMensajes();
+
+  if (!email.value.trim() || !password.value) {
     errorMsg.value = 'Ingresa tu correo y contraseña.';
     return;
   }
 
-  limpiarMensajes();
+  if (!emailValido(email.value.trim())) {
+    errorMsg.value = 'Ingresa un correo electrónico válido.';
+    return;
+  }
+
+  limpiarSesionLocal();
   loading.value = true;
 
   try {
-    const usuario = await loginUsuario({
-      email: email.value,
+    await loginUsuario({
+      email: email.value.trim(),
       password: password.value,
     });
 
-    localStorage.setItem('user', JSON.stringify(usuario));
-    router.push('/tabs/dashboard');
+    password.value = '';
+    confirmarPassword.value = '';
+
+    router.replace('/tabs/dashboard');
   } catch (e: unknown) {
-    errorMsg.value = e instanceof Error ? e.message : 'Error al iniciar sesión.';
+    limpiarSesionLocal();
+    errorMsg.value = e instanceof Error
+      ? e.message
+      : 'Error al iniciar sesión.';
   } finally {
     loading.value = false;
   }
-};
+}
 
-// ── Registro real ───────────────────────────────────────────────────────────
-const hacerRegistro = async () => {
-  if (!nombre.value || !email.value || !password.value || !confirmarPassword.value) {
+async function hacerRegistro() {
+  limpiarMensajes();
+
+  if (
+    !nombre.value.trim() ||
+    !email.value.trim() ||
+    !password.value ||
+    !confirmarPassword.value
+  ) {
     errorMsg.value = 'Completa todos los campos.';
     return;
   }
+
+  if (!emailValido(email.value.trim())) {
+    errorMsg.value = 'Ingresa un correo electrónico válido.';
+    return;
+  }
+
   if (password.value.length < 6) {
     errorMsg.value = 'La contraseña debe tener al menos 6 caracteres.';
     return;
   }
+
   if (password.value !== confirmarPassword.value) {
     errorMsg.value = 'Las contraseñas no coinciden.';
     return;
   }
 
-  limpiarMensajes();
+  limpiarSesionLocal();
   loading.value = true;
 
   try {
-    const usuario = await registrarUsuario({
-      name: nombre.value,
-      email: email.value,
+    await registrarUsuario({
+      name: nombre.value.trim(),
+      email: email.value.trim(),
       password: password.value,
       rol: rol.value,
     });
 
-    localStorage.setItem('user', JSON.stringify(usuario));
-    successMsg.value = '¡Cuenta creada exitosamente! Redirigiendo…';
-    setTimeout(() => router.push('/tabs/dashboard'), 1200);
+    password.value = '';
+    confirmarPassword.value = '';
+
+    successMsg.value = 'Cuenta creada correctamente. Redirigiendo…';
+
+    setTimeout(() => {
+      router.replace('/tabs/dashboard');
+    }, 900);
   } catch (e: unknown) {
-    errorMsg.value = e instanceof Error ? e.message : 'Error al crear la cuenta.';
+    limpiarSesionLocal();
+    errorMsg.value = e instanceof Error
+      ? e.message
+      : 'Error al crear la cuenta.';
   } finally {
     loading.value = false;
   }
-};
+}
 
-// Si ya hay sesión, va directo al dashboard
 onMounted(() => {
-  if (localStorage.getItem('user')) {
-    router.push('/tabs/dashboard');
-  }
+  prepararLoginSeguro();
+});
+
+onIonViewWillEnter(() => {
+  prepararLoginSeguro();
 });
 </script>
 
 <style scoped>
-
 .login-content {
   --background: transparent;
 }
@@ -381,8 +479,6 @@ onMounted(() => {
   line-height: 1.5;
 }
 
-/* ── form card ─────────────────────────────────────────────────────────── */
-
 .form-card {
   width: 100%;
   max-width: 420px;
@@ -391,8 +487,6 @@ onMounted(() => {
   padding: 24px 24px 28px;
   box-shadow: 0 20px 60px rgba(0,0,0,.25);
 }
-
-/* ── tabs ──────────────────────────────────────────────────────────────── */
 
 .tab-row {
   display: flex;
@@ -422,8 +516,6 @@ onMounted(() => {
   color: #1A3D28;
   box-shadow: 0 1px 6px rgba(0,0,0,.12);
 }
-
-/* ── fields ────────────────────────────────────────────────────────────── */
 
 .field {
   margin-bottom: 14px;
@@ -488,8 +580,6 @@ onMounted(() => {
   opacity: 1;
 }
 
-/* ── messages ──────────────────────────────────────────────────────────── */
-
 .error-msg {
   font-size: .8125rem;
   color: #EF4444;
@@ -507,8 +597,6 @@ onMounted(() => {
   padding: 8px 12px;
   margin: 0 0 14px;
 }
-
-/* ── submit ────────────────────────────────────────────────────────────── */
 
 .btn-login {
   width: 100%;
@@ -533,8 +621,6 @@ onMounted(() => {
 .btn-login:not(:disabled):hover {
   transform: translateY(-1px);
 }
-
-/* ── rol selector ──────────────────────────────────────────────────────── */
 
 .rol-grid {
   display: grid;
@@ -583,13 +669,10 @@ onMounted(() => {
   color: #6B7280;
 }
 
-/* ── footer ────────────────────────────────────────────────────────────── */
-
 .footer-note {
   margin-top: 24px;
   font-size: .6875rem;
   color: rgba(255,255,255,.4);
   letter-spacing: .04em;
 }
-
 </style>

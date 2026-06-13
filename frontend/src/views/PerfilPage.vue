@@ -9,8 +9,8 @@
             <span class="logo-txt">BovWeight CR</span>
           </div>
 
-          <button class="icon-btn" @click="router.push('/tabs/dashboard')">
-            ⚙
+          <button class="icon-btn" @click="recargarVista">
+            ↻
           </button>
         </div>
 
@@ -57,7 +57,7 @@
             <span class="chev">›</span>
           </div>
 
-          <div class="list-item" @click="vista = 'hacienda'">
+          <div class="list-item" @click="abrirHacienda">
             <div class="li-ico">🏡</div>
             <div class="li-info">
               <div class="li-title">Detalles de la Hacienda</div>
@@ -135,7 +135,7 @@
               class="btn-edit"
               @click="activarEdicion"
             >
-              ✏ Editar Perfil
+              Editar Perfil
             </button>
           </div>
 
@@ -198,7 +198,7 @@
               :disabled="guardandoPerfil"
               @click="guardarCambios"
             >
-              {{ guardandoPerfil ? 'Guardando...' : '💾 Guardar Cambios' }}
+              {{ guardandoPerfil ? 'Guardando...' : 'Guardar Cambios' }}
             </button>
 
             <button
@@ -225,6 +225,10 @@
           </button>
 
           <div class="sub-bar-title">Detalles de la Hacienda</div>
+
+          <button class="icon-btn" @click="recargarVista">
+            ↻
+          </button>
         </div>
 
         <div class="body-pad">
@@ -279,7 +283,7 @@
             style="margin-top:12px"
             @click="abrirModalFinca"
           >
-            ➕ Vincular Nueva Finca
+            Vincular Nueva Finca
           </button>
 
           <button class="btn-outline" @click="vista = 'menu'">
@@ -471,6 +475,7 @@ import {
   IonContent,
   IonModal,
   toastController,
+  onIonViewWillEnter,
 } from '@ionic/vue';
 
 import {
@@ -518,18 +523,16 @@ const editandoFinca = ref(false);
 const guardandoEdicionFinca = ref(false);
 const errorEdicionFinca = ref('');
 
-const rawUser = obtenerUsuarioLocal();
-
 const user = ref<UsuarioPerfil>({
-  id: rawUser.id,
-  name: rawUser.name || 'Usuario',
-  email: rawUser.email || '',
-  rol: (rawUser.rol || 'ganadero') as RolUsuario,
+  id: undefined,
+  name: 'Usuario',
+  email: '',
+  rol: 'ganadero',
 });
 
 const form = ref({
-  name: user.value.name,
-  email: user.value.email,
+  name: '',
+  email: '',
 });
 
 const formFinca = ref({
@@ -569,21 +572,38 @@ const rolLabel = computed(() => {
   return '🐄 Ganadero';
 });
 
-onMounted(async () => {
-  await cargarPerfil();
-  await cargarDatosFincas();
+onMounted(() => {
+  recargarVista();
 });
 
-function obtenerUsuarioLocal(): any {
-  try {
-    return JSON.parse(localStorage.getItem('user') || '{}');
-  } catch {
-    return {};
-  }
-}
+onIonViewWillEnter(() => {
+  recargarVista();
+});
 
 function obtenerToken(): string | null {
   return localStorage.getItem('token');
+}
+
+function limpiarDatosLocalesSesion() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  localStorage.removeItem('perfil');
+  localStorage.removeItem('animalSel');
+  localStorage.removeItem('fincaSel');
+  localStorage.removeItem('pesajeSel');
+  sessionStorage.clear();
+}
+
+async function validarSesion(): Promise<boolean> {
+  const token = obtenerToken();
+
+  if (!token) {
+    limpiarDatosLocalesSesion();
+    router.replace('/login');
+    return false;
+  }
+
+  return true;
 }
 
 async function mostrarToast(
@@ -607,12 +627,33 @@ function extraerErrores(data: any, mensajeDefault: string): string {
   return data?.mensaje || mensajeDefault;
 }
 
+async function recargarVista() {
+  if (!(await validarSesion())) {
+    return;
+  }
+
+  await cargarPerfil();
+  await cargarDatosFincas();
+
+  if (fincaSel.value?.id) {
+    const fincaActualizada = fincas.value.find(
+      (f) => Number(f.id) === Number(fincaSel.value?.id)
+    );
+
+    fincaSel.value = fincaActualizada || null;
+
+    if (!fincaSel.value && vista.value === 'finca-detalle') {
+      vista.value = 'hacienda';
+    }
+  }
+}
+
 async function cargarPerfil() {
   const token = obtenerToken();
 
   if (!token) {
-    await mostrarToast('No se encontró sesión activa. Inicia sesión nuevamente.', 'warning');
-    router.push('/login');
+    limpiarDatosLocalesSesion();
+    router.replace('/login');
     return;
   }
 
@@ -628,6 +669,12 @@ async function cargarPerfil() {
     });
 
     const data = await response.json();
+
+    if (response.status === 401) {
+      limpiarDatosLocalesSesion();
+      router.replace('/login');
+      return;
+    }
 
     if (!response.ok || !data.exito) {
       throw new Error(data.mensaje || 'No se pudo obtener el perfil.');
@@ -671,13 +718,7 @@ async function cargarDatosFincas() {
       ? animalesRaw
       : (animalesRaw as any).datos ?? [];
 
-    const userId = user.value.id;
-
-    const fincasData = userId
-      ? todasFincas.filter((f: FincaDto) => Number(f.user_id) === Number(userId))
-      : todasFincas;
-
-    fincas.value = fincasData.map((f: FincaDto) => ({
+    fincas.value = todasFincas.map((f: FincaDto) => ({
       id: f.id,
       nombre: f.nombre,
       ubicacion: f.ubicacion,
@@ -688,10 +729,22 @@ async function cargarDatosFincas() {
       (s: number, f: FincaLocal) => s + f.cabezas,
       0
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error cargando fincas/animales:', error);
+
+    if (String(error?.message || '').includes('401')) {
+      limpiarDatosLocalesSesion();
+      router.replace('/login');
+      return;
+    }
+
     await mostrarToast('No se pudieron cargar las fincas del usuario.', 'warning');
   }
+}
+
+async function abrirHacienda() {
+  await recargarVista();
+  vista.value = 'hacienda';
 }
 
 function activarEdicion() {
@@ -746,8 +799,8 @@ async function guardarCambios() {
   const token = obtenerToken();
 
   if (!token) {
-    await mostrarToast('No se encontró sesión activa. Inicia sesión nuevamente.', 'warning');
-    router.push('/login');
+    limpiarDatosLocalesSesion();
+    router.replace('/login');
     return;
   }
 
@@ -762,34 +815,28 @@ async function guardarCambios() {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        name: form.value.name,
-        email: form.value.email,
+        name: form.value.name.trim(),
+        email: form.value.email.trim(),
       }),
     });
 
     const data = await response.json();
 
+    if (response.status === 401) {
+      limpiarDatosLocalesSesion();
+      router.replace('/login');
+      return;
+    }
+
     if (!response.ok || !data.exito) {
       throw new Error(extraerErrores(data, 'No se pudo actualizar el perfil.'));
     }
 
-    const perfilActualizado = data.datos;
-
-    user.value = {
-      id: perfilActualizado.id,
-      name: perfilActualizado.name || form.value.name,
-      email: perfilActualizado.email || form.value.email,
-      rol: (perfilActualizado.rol || user.value.rol || 'ganadero') as RolUsuario,
-    };
-
-    form.value = {
-      name: user.value.name,
-      email: user.value.email,
-    };
-
-    localStorage.setItem('user', JSON.stringify(user.value));
-
     editando.value = false;
+
+    await recargarVista();
+
+    vista.value = 'menu';
 
     await mostrarToast('Perfil actualizado correctamente.', 'success');
   } catch (error: any) {
@@ -841,16 +888,8 @@ async function vincularFinca() {
   const token = obtenerToken();
 
   if (!token) {
-    await mostrarToast('No se encontró sesión activa. Inicia sesión nuevamente.', 'warning');
-    router.push('/login');
-    return;
-  }
-
-  const usuarioLocal = obtenerUsuarioLocal();
-  const userId = user.value.id || usuarioLocal.id;
-
-  if (!userId) {
-    errorFinca.value = 'No se pudo identificar el usuario actual.';
+    limpiarDatosLocalesSesion();
+    router.replace('/login');
     return;
   }
 
@@ -867,11 +906,16 @@ async function vincularFinca() {
       body: JSON.stringify({
         nombre: nuevaFinca.value.nombre.trim(),
         ubicacion: nuevaFinca.value.ubicacion.trim(),
-        user_id: userId,
       }),
     });
 
     const data = await response.json();
+
+    if (response.status === 401) {
+      limpiarDatosLocalesSesion();
+      router.replace('/login');
+      return;
+    }
 
     if (!response.ok || !data.exito) {
       throw new Error(extraerErrores(data, 'No se pudo crear la finca.'));
@@ -879,7 +923,9 @@ async function vincularFinca() {
 
     cerrarModalFinca();
 
-    await cargarDatosFincas();
+    await recargarVista();
+
+    vista.value = 'hacienda';
 
     await mostrarToast('Finca registrada correctamente.', 'success');
   } catch (error: any) {
@@ -942,16 +988,8 @@ async function guardarEdicionFinca() {
   const token = obtenerToken();
 
   if (!token) {
-    await mostrarToast('No se encontró sesión activa. Inicia sesión nuevamente.', 'warning');
-    router.push('/login');
-    return;
-  }
-
-  const usuarioLocal = obtenerUsuarioLocal();
-  const userId = user.value.id || usuarioLocal.id;
-
-  if (!userId) {
-    errorEdicionFinca.value = 'No se pudo identificar el usuario actual.';
+    limpiarDatosLocalesSesion();
+    router.replace('/login');
     return;
   }
 
@@ -971,17 +1009,24 @@ async function guardarEdicionFinca() {
       body: JSON.stringify({
         nombre: formFinca.value.nombre.trim(),
         ubicacion: formFinca.value.ubicacion.trim(),
-        user_id: userId,
       }),
     });
 
     const data = await response.json();
 
+    if (response.status === 401) {
+      limpiarDatosLocalesSesion();
+      router.replace('/login');
+      return;
+    }
+
     if (!response.ok || !data.exito) {
       throw new Error(extraerErrores(data, 'No se pudo actualizar la finca.'));
     }
 
-    await cargarDatosFincas();
+    editandoFinca.value = false;
+
+    await recargarVista();
 
     const fincaActualizada = fincas.value.find(
       (f) => Number(f.id) === Number(fincaId)
@@ -989,9 +1034,11 @@ async function guardarEdicionFinca() {
 
     if (fincaActualizada) {
       fincaSel.value = fincaActualizada;
+      vista.value = 'finca-detalle';
+    } else {
+      fincaSel.value = null;
+      vista.value = 'hacienda';
     }
-
-    editandoFinca.value = false;
 
     await mostrarToast('Finca actualizada correctamente.', 'success');
   } catch (error: any) {
@@ -1002,7 +1049,7 @@ async function guardarEdicionFinca() {
   }
 }
 
-const cerrarSesion = async () => {
+async function cerrarSesion() {
   const token = obtenerToken();
 
   try {
@@ -1018,11 +1065,10 @@ const cerrarSesion = async () => {
   } catch (error) {
     console.warn('No se pudo cerrar sesión en el servidor:', error);
   } finally {
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    router.push('/login');
+    limpiarDatosLocalesSesion();
+    router.replace('/login');
   }
-};
+}
 </script>
 
 <style scoped>

@@ -9,9 +9,9 @@ use App\Models\Finca;
 
 class FincaController extends Controller
 {
-    public function listarFincas(): JsonResponse
+    public function listarFincas(Request $request): JsonResponse
     {
-    $fincas = Finca::all();
+    $fincas = Finca::where('user_id', $request->user()->id)->get();
 
     return ApiResponse::success(
         'Fincas obtenidas correctamente',
@@ -19,21 +19,22 @@ class FincaController extends Controller
     );
     }
 
-    public function crearFinca(Request $request)
+    public function crearFinca(Request $request): JsonResponse
     {
-        $request->validate([
-            'nombre' => 'required|string',
-            'ubicacion' => 'required|string',
-            'user_id' => 'required|exists:users,id'
-        ]);
+    $datos = $request->validate([
+        'nombre' => 'required|string|max:255',
+        'ubicacion' => 'required|string|max:255',
+    ]);
 
-        $finca = Finca::create($request->all());
+    $datos['user_id'] = $request->user()->id;
 
-        return ApiResponse::success(
-            'Finca creada correctamente',
-            $finca,
-            201
-        );
+    $finca = Finca::create($datos);
+
+    return ApiResponse::success(
+        'Finca creada correctamente',
+        $finca,
+        201
+    );
     }
 
     public function obtenerFinca($id): JsonResponse
@@ -55,22 +56,29 @@ class FincaController extends Controller
     }
 
     public function actualizarFinca(Request $request, $id): JsonResponse
-{
-    $finca = Finca::find($id);
+    {
+    $finca = Finca::where('id', $id)
+        ->where('user_id', $request->user()->id)
+        ->first();
 
     if (!$finca) {
         return ApiResponse::error(
-            'Finca no encontrada',
+            'Finca no encontrada o no pertenece al usuario',
             [],
             404
         );
     }
 
-    $finca->update($request->all());
+    $datos = $request->validate([
+        'nombre' => 'required|string|max:255',
+        'ubicacion' => 'required|string|max:255',
+    ]);
+
+    $finca->update($datos);
 
     return ApiResponse::success(
         'Finca actualizada correctamente',
-        $finca
+        $finca->fresh()
     );
     }
 
