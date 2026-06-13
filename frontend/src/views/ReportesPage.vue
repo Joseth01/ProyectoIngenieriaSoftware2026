@@ -561,6 +561,25 @@ function buildPDF(titulo: string, subtitulo: string, secciones: Seccion[]): jsPD
 
   addHeader();
 
+  // Aviso legal: los pesos son estimaciones, no sustituyen la báscula oficial
+  doc.setFillColor(255, 247, 237);
+  doc.setDrawColor(253, 186, 116);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(ML, y - 4, W - ML * 2, 12, 1.5, 1.5, 'FD');
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(154, 52, 18);
+  doc.text(
+    'AVISO: Los pesos de este reporte son ESTIMACIONES de apoyo y NO sustituyen la bascula oficial.',
+    ML + 3, y + 1
+  );
+  doc.setFont('helvetica', 'normal');
+  doc.text(
+    'Para transacciones comerciales o dosificacion critica, verifique con una bascula certificada.',
+    ML + 3, y + 5
+  );
+  y += 16;
+
   const ROW_H = 7;
 
   for (const sec of secciones) {

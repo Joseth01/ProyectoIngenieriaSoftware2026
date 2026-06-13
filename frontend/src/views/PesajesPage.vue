@@ -573,6 +573,8 @@ import {
   type FincaDto,
 } from '@/services/api';
 
+import { areteEsValido, ARETE_MENSAJE_ERROR } from '@/utils/arete';
+
 const PESO_MINIMO = 50;
 const PESO_MAXIMO = 1200;
 const FUENTE_MANUAL = 3;
@@ -999,6 +1001,11 @@ const crearAnimal = async () => {
 
   if (!nuevoArete.value.trim()) {
     errorCrear.value = 'El número de arete es obligatorio.';
+    return;
+  }
+
+  if (!areteEsValido(nuevoArete.value)) {
+    errorCrear.value = ARETE_MENSAJE_ERROR;
     return;
   }
 

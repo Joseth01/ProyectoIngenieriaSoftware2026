@@ -75,4 +75,39 @@ class AnimalTest extends TestCase
 
         $response->assertStatus(422);
     }
+
+    public function test_no_puede_crear_animal_con_arete_formato_invalido(): void
+    {
+        ['token' => $token, 'finca' => $finca, 'raza' => $raza] = $this->setup_datos();
+
+        // Arete sin dígitos: no cumple el formato SENASA
+        $response = $this->withToken($token)->postJson('/api/animales', [
+            'numero_arete'     => 'VACA-AZUL',
+            'nombre'           => 'Formato Malo',
+            'raza_id'          => $raza->id,
+            'nombre_raza'      => 'brahman',
+            'fecha_nacimiento' => '2022-01-15',
+            'finca_id'         => $finca->id,
+        ]);
+
+        $response->assertStatus(422)
+                 ->assertJsonValidationErrors('numero_arete');
+    }
+
+    public function test_acepta_arete_con_prefijo_de_pais(): void
+    {
+        ['token' => $token, 'finca' => $finca, 'raza' => $raza] = $this->setup_datos();
+
+        $response = $this->withToken($token)->postJson('/api/animales', [
+            'numero_arete'     => 'CR005',
+            'nombre'           => 'Aurora',
+            'raza_id'          => $raza->id,
+            'nombre_raza'      => 'brahman',
+            'fecha_nacimiento' => '2022-01-15',
+            'finca_id'         => $finca->id,
+        ]);
+
+        $response->assertStatus(201)
+                 ->assertJsonPath('exito', true);
+    }
 }

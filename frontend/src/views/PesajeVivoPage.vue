@@ -219,7 +219,7 @@
             </div>
 
             <p class="warning-note">
-              Esta medición es una estimación generada por el servicio IA. Antes de guardar puedes confirmar o ajustar el peso.
+              ⚠️ Esto es solo una <strong>estimación</strong> y no sustituye la báscula oficial. Para transacciones formales use siempre una báscula certificada. Antes de guardar puede confirmar o ajustar el peso.
             </p>
 
           </div>
@@ -572,7 +572,7 @@
               </div>
 
               <p class="warning-note">
-                Al guardar, se registrará el pesaje del animal y se almacenará la imagen asociada al pesaje.
+                ⚠️ Este peso es una <strong>estimación de apoyo</strong> y no sustituye la báscula oficial. Para compra/venta o dosificación crítica, verifique con una báscula certificada.
               </p>
 
               <div class="form-actions">
@@ -650,6 +650,8 @@ import {
   eliminarCaptura,
   generarIdCaptura
 } from '@/services/offlineQueue';
+
+import { areteEsValido, ARETE_MENSAJE_ERROR } from '@/utils/arete';
 
 const PESO_MINIMO = 50;
 const PESO_MAXIMO = 1200;
@@ -971,6 +973,11 @@ async function guardarNuevoAnimal() {
   if (!nuevoAnimal.value.numero_arete.trim()) {
     errorCrearAnimal.value =
       'Ingresa el número de arete.';
+    return;
+  }
+
+  if (!areteEsValido(nuevoAnimal.value.numero_arete)) {
+    errorCrearAnimal.value = ARETE_MENSAJE_ERROR;
     return;
   }
 
