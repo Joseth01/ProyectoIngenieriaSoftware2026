@@ -65,6 +65,14 @@
             <span class="chev">›</span>
           </div>
 
+          <div class="list-item" @click="router.push('/tabs/recordatorios')">
+            <div class="li-ico">⏰</div>
+            <div class="li-info">
+              <div class="li-title">Recordatorios de pesaje</div>
+            </div>
+            <span class="chev">›</span>
+          </div>
+
           <div class="list-item" style="cursor:default">
             <div class="li-ico">🔔</div>
             <div class="li-info">
