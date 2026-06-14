@@ -17,15 +17,30 @@ const routes: Array<RouteRecordRaw> = [
       { path: 'reportes', component: () => import('../views/ReportesPage.vue') },
       { path: 'ayuda', component: () => import('../views/AyudaPage.vue') },
       { path: 'recordatorios', component: () => import('../views/RecordatoriosPage.vue') },
-      {path: "pesaje-vivo",component: () => import("../views/PesajeVivoPage.vue")}
-                                
+      { path: 'pesaje-vivo', component: () => import('../views/PesajeVivoPage.vue') }
+
+      
     ]
   },
-  { path: '/login', component: () => import('../views/LoginPage.vue') },
   {
-  path: '/registro',
-  component: () => import('../views/RegistroPage.vue')
+    path: '/login',
+    component: () => import('../views/LoginPage.vue')
+  },
+  {
+    path: '/registro',
+    component: () => import('../views/RegistroPage.vue')
+  },
+  {
+        path: '/admin/usuarios',
+        component: () => import('../views/admin/AdminUsuariosPage.vue'),
+        meta: { requiresAdmin: true }
+      },
+      {
+  path: '/admin/bitacoras',
+  component: () => import('../views/admin/AdminBitacoraPage.vue'),
+  meta: { requiresAdmin: true }
 }
+
 ];
 
 const router = createRouter({
@@ -34,54 +49,49 @@ const router = createRouter({
 });
 
 router.beforeEach((to, from, next) => {
-
-  const user = localStorage.getItem('user');
-
-  /*
-    RUTAS PÚBLICAS
-  */
+  const userRaw = localStorage.getItem('user');
 
   const rutasPublicas = [
     '/login',
     '/registro'
   ];
 
-  /*
-    SI NO HAY USUARIO
-  */
+  let user: any = null;
 
-  if (!user && !rutasPublicas.includes(to.path)) {
-
-    next('/login');
-
+  if (userRaw) {
+    try {
+      user = JSON.parse(userRaw);
+    } catch {
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+    }
   }
 
-  /*
-    SI YA ESTÁ LOGUEADO
-  */
+  if (!user && !rutasPublicas.includes(to.path)) {
+    next('/login');
+    return;
+  }
 
-  else if (
+  if (
     user &&
     (
       to.path === '/login' ||
       to.path === '/registro'
     )
   ) {
-
     next('/tabs/dashboard');
-
+    return;
   }
 
-  /*
-    TODO OK
-  */
-
-  else {
-
-    next();
-
+  if (
+    to.meta.requiresAdmin &&
+    user?.rol !== 'admin'
+  ) {
+    next('/tabs/dashboard');
+    return;
   }
 
+  next();
 });
 
-export default router; 
+export default router;

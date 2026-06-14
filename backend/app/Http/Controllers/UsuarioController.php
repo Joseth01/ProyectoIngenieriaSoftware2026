@@ -8,12 +8,15 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\JsonResponse;
 use App\Helpers\ApiResponse;
 use App\Services\UsuarioService;
+use App\Services\AuditoriaService;
 
 class UsuarioController extends Controller
 {
     public function __construct(
-    private readonly UsuarioService $usuarioService
-) {}
+        private readonly UsuarioService $usuarioService,
+        private readonly AuditoriaService $auditoriaService
+    ) {}
+
     public function registrar(Request $request): JsonResponse
     {
         $datos = $request->validate([
@@ -27,8 +30,14 @@ class UsuarioController extends Controller
             'name'     => $datos['name'],
             'email'    => $datos['email'],
             'password' => $datos['password'],
-            'rol'      => $datos['rol'] ?? User::ROL_GANADERO
+            'rol'      => $datos['rol'] ?? User::ROL_GANADERO,
+            'activo'   => true,
         ]);
+
+        $this->auditoriaService->registrarRegistroUsuario(
+            $user,
+            $request
+        );
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -59,6 +68,19 @@ class UsuarioController extends Controller
             );
         }
 
+        if (!$user->activo) {
+            return ApiResponse::error(
+                'La cuenta está desactivada. Contacte al administrador.',
+                [],
+                403
+            );
+        }
+
+        $this->auditoriaService->registrarLogin(
+            $user,
+            $request
+        );
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return ApiResponse::success(
@@ -86,38 +108,121 @@ class UsuarioController extends Controller
             'Logout exitoso'
         );
     }
-    public function perfilCompleto(
-    Request $request
-): JsonResponse {
 
-    $datos = $this->usuarioService
-        ->obtenerPerfilCompleto(
-            $request->user()
+    public function perfilCompleto(Request $request): JsonResponse
+    {
+        $datos = $this->usuarioService
+            ->obtenerPerfilCompleto(
+                $request->user()
+            );
+
+        return ApiResponse::success(
+            'Perfil completo obtenido correctamente',
+            $datos
+        );
+    }
+
+    public function actualizarPerfil(Request $request): JsonResponse
+    {
+        $usuario = $request->user();
+
+        $datos = $request->validate([
+            'name'  => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email,' . $usuario->id,
+        ]);
+
+        $datosAnteriores = [
+            'name' => $usuario->name,
+            'email' => $usuario->email,
+        ];
+
+        $usuario->update([
+            'name'  => $datos['name'],
+            'email' => $datos['email'],
+        ]);
+
+        $usuarioActualizado = $usuario->fresh();
+
+        $this->auditoriaService->registrar(
+            accion: 'ACTUALIZAR_PERFIL',
+            modulo: 'Usuarios',
+            descripcion: 'El usuario actualizó su perfil.',
+            entidadTipo: 'User',
+            entidadId: $usuarioActualizado->id,
+            datosAnteriores: $datosAnteriores,
+            datosNuevos: [
+                'name' => $usuarioActualizado->name,
+                'email' => $usuarioActualizado->email,
+            ],
+            usuario: $usuarioActualizado,
+            request: $request
         );
 
-    return ApiResponse::success(
-        'Perfil completo obtenido correctamente',
-        $datos
-    );
-
+        return ApiResponse::success(
+            'Perfil actualizado correctamente',
+            $usuarioActualizado
+        );
     }
-    public function actualizarPerfil(Request $request): JsonResponse
-{
-    $usuario = $request->user();
 
-    $datos = $request->validate([
-        'name'  => 'required|string|max:255',
-        'email' => 'required|email|unique:users,email,' . $usuario->id,
-    ]);
+    public function listarUsuariosAdmin(Request $request): JsonResponse
+    {
+        if ($request->user()->rol !== 'admin') {
+            return ApiResponse::error(
+                'No tiene permisos para acceder al panel administrativo.',
+                [],
+                403
+            );
+        }
 
-    $usuario->update([
-        'name'  => $datos['name'],
-        'email' => $datos['email'],
-    ]);
+        $usuarios = $this->usuarioService->listarUsuariosAdmin();
 
-    return ApiResponse::success(
-        'Perfil actualizado correctamente',
-        $usuario->fresh()
-    );
-}
+        return ApiResponse::success(
+            'Usuarios obtenidos correctamente',
+            $usuarios
+        );
+    }
+
+    public function cambiarEstadoUsuarioAdmin(
+        Request $request,
+        int $id
+    ): JsonResponse {
+
+        if ($request->user()->rol !== 'admin') {
+            return ApiResponse::error(
+                'No tiene permisos para realizar esta acción.',
+                [],
+                403
+            );
+        }
+
+        if ($request->user()->id === $id) {
+            return ApiResponse::error(
+                'No puede activar o desactivar su propia cuenta.',
+                [],
+                422
+            );
+        }
+
+        $resultado = $this->usuarioService
+            ->cambiarEstadoUsuarioAdmin($id);
+
+        $usuario = $resultado['usuario'];
+        $estadoAnterior = $resultado['estado_anterior'];
+        $estadoNuevo = $resultado['estado_nuevo'];
+
+        $this->auditoriaService->registrarCambioEstadoUsuario(
+            admin: $request->user(),
+            usuarioAfectado: $usuario,
+            estadoAnterior: $estadoAnterior,
+            estadoNuevo: $estadoNuevo,
+            request: $request
+        );
+
+        return ApiResponse::success(
+            $usuario->activo
+                ? 'Usuario activado correctamente'
+                : 'Usuario desactivado correctamente',
+            $usuario
+        );
+    }
 }

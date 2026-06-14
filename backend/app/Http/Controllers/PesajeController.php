@@ -14,6 +14,7 @@ use App\Observers\AlertaSMS;
 use App\Observers\NotificadorPropietario;
 use App\Observers\RecalculadorICC;
 use App\Observers\WebhookSenasa;
+use App\Services\AuditoriaService;
 use App\Services\EstimadorPesoService;
 use App\Services\ServicioIA;
 use Illuminate\Http\JsonResponse;
@@ -32,7 +33,8 @@ class PesajeController extends Controller
     private const FUENTE_MANUAL = 3;
 
     public function __construct(
-        private readonly ServicioIA $servicioIA
+        private readonly ServicioIA $servicioIA,
+        private readonly AuditoriaService $auditoriaService
     ) {}
 
     public function listar(Request $request): JsonResponse
@@ -159,6 +161,24 @@ class PesajeController extends Controller
             'animal.finca',
             'fuente',
         ]);
+
+        $datosAuditoria = $this->datosPesajeParaAuditoria($pesaje);
+
+        if ($resultadoEstimacion) {
+            $datosAuditoria['estimacion'] = $resultadoEstimacion->toArray();
+        }
+
+        $this->auditoriaService->registrar(
+            accion: 'CREAR_PESAJE',
+            modulo: 'Pesajes',
+            descripcion: 'El usuario registró un nuevo pesaje.',
+            entidadTipo: 'Pesaje',
+            entidadId: $pesaje->id,
+            datosAnteriores: null,
+            datosNuevos: $datosAuditoria,
+            usuario: $request->user(),
+            request: $request
+        );
 
         $respuesta = $pesaje->toArray();
 
@@ -368,6 +388,29 @@ class PesajeController extends Controller
                     'fuente',
                 ]);
 
+                $datosAuditoria = $this->datosPesajeParaAuditoria($pesaje);
+
+                if ($registroImagen) {
+                    $datosAuditoria['imagen'] = [
+                        'id' => $registroImagen->id,
+                        'url' => $registroImagen->url,
+                        'procesada' => $registroImagen->procesada,
+                        'fecha' => $registroImagen->fecha,
+                    ];
+                }
+
+                $this->auditoriaService->registrar(
+                    accion: 'CREAR_PESAJE_IA',
+                    modulo: 'Pesajes',
+                    descripcion: 'El usuario guardó un pesaje generado con IA.',
+                    entidadTipo: 'Pesaje',
+                    entidadId: $pesaje->id,
+                    datosAnteriores: null,
+                    datosNuevos: $datosAuditoria,
+                    usuario: $request->user(),
+                    request: $request
+                );
+
                 return ApiResponse::success(
                     'Pesaje guardado correctamente',
                     [
@@ -403,5 +446,25 @@ class PesajeController extends Controller
     private function pesoEnRango(float|int $peso): bool
     {
         return $peso >= self::PESO_MINIMO && $peso <= self::PESO_MAXIMO;
+    }
+
+    private function datosPesajeParaAuditoria(Pesaje $pesaje): array
+    {
+        return [
+            'id' => $pesaje->id,
+            'animal_id' => $pesaje->animal_id,
+            'animal' => [
+                'id' => $pesaje->animal?->id,
+                'nombre' => $pesaje->animal?->nombre,
+                'numero_arete' => $pesaje->animal?->numero_arete,
+                'raza' => $pesaje->animal?->raza?->nombre,
+                'finca' => $pesaje->animal?->finca?->nombre,
+            ],
+            'peso_estimado' => $pesaje->peso_estimado,
+            'peso_real' => $pesaje->peso_real,
+            'fecha' => $pesaje->fecha,
+            'fuente_id' => $pesaje->fuente_id,
+            'fuente' => $pesaje->fuente?->nombre,
+        ];
     }
 }

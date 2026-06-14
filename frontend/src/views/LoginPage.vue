@@ -209,6 +209,7 @@ import {
   loginUsuario,
   registrarUsuario,
   type RolUsuario,
+  type UsuarioDto,
 } from '@/services/api';
 
 const router = useRouter();
@@ -289,6 +290,18 @@ function emailValido(valor: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor);
 }
 
+function obtenerRutaInicial(usuario: UsuarioDto): string {
+  const rolUsuario = String(usuario.rol || '')
+    .trim()
+    .toLowerCase();
+
+  if (rolUsuario === 'admin') {
+    return '/admin/usuarios';
+  }
+
+  return '/tabs/dashboard';
+}
+
 async function hacerLogin() {
   limpiarMensajes();
 
@@ -306,7 +319,7 @@ async function hacerLogin() {
   loading.value = true;
 
   try {
-    await loginUsuario({
+    const usuario = await loginUsuario({
       email: email.value.trim(),
       password: password.value,
     });
@@ -314,7 +327,9 @@ async function hacerLogin() {
     password.value = '';
     confirmarPassword.value = '';
 
-    router.replace('/tabs/dashboard');
+    const rutaInicial = obtenerRutaInicial(usuario);
+
+    router.replace(rutaInicial);
   } catch (e: unknown) {
     limpiarSesionLocal();
     errorMsg.value = e instanceof Error
@@ -357,7 +372,7 @@ async function hacerRegistro() {
   loading.value = true;
 
   try {
-    await registrarUsuario({
+    const usuario = await registrarUsuario({
       name: nombre.value.trim(),
       email: email.value.trim(),
       password: password.value,
@@ -370,7 +385,7 @@ async function hacerRegistro() {
     successMsg.value = 'Cuenta creada correctamente. Redirigiendo…';
 
     setTimeout(() => {
-      router.replace('/tabs/dashboard');
+      router.replace(obtenerRutaInicial(usuario));
     }, 900);
   } catch (e: unknown) {
     limpiarSesionLocal();

@@ -1,21 +1,41 @@
 const API_BASE = 'http://127.0.0.1:8000/api';
 
-export type RolUsuario = 'ganadero' | 'veterinario';
+export type RolUsuario = 'admin' | 'ganadero' | 'veterinario';
 
 export interface ApiResponse<T> {
-  exito: boolean;
-  mensaje: string;
+  success?: boolean;
+  message?: string;
+  mensaje?: string;
   datos: T;
-  errores?: any;
+  data?: T;
+  errors?: Record<string, string[]>;
 }
 
 export interface UsuarioDto {
   id: number;
   name: string;
   email: string;
-  rol?: string;
+  rol?: RolUsuario | string;
+  activo?: boolean | number;
+  created_at?: string;
+  updated_at?: string;
 }
-
+export interface BitacoraDto {
+  id: number;
+  user_id?: number | null;
+  accion: string;
+  modulo?: string | null;
+  descripcion?: string | null;
+  entidad_tipo?: string | null;
+  entidad_id?: number | null;
+  ip?: string | null;
+  user_agent?: string | null;
+  datos_anteriores?: Record<string, any> | null;
+  datos_nuevos?: Record<string, any> | null;
+  created_at?: string;
+  updated_at?: string;
+  usuario?: UsuarioDto | null;
+}
 export interface LoginDto {
   email: string;
   password: string;
@@ -315,6 +335,24 @@ export const getPerfil = () =>
 export const getPerfilCompleto = () =>
   fetchJson<ApiResponse<PerfilCompletoDto>>(
     '/usuarios/perfil-completo'
+  );
+  /* =========================
+   ADMINISTRACIÓN
+========================= */
+export const getAdminUsuarios = () =>
+  fetchJson<ApiResponse<UsuarioDto[]>>(
+    '/admin/usuarios'
+  );
+  export const cambiarEstadoUsuarioAdmin = (id: number) =>
+  fetchJson<ApiResponse<UsuarioDto>>(
+    `/admin/usuarios/${id}/estado`,
+    {
+      method: 'PATCH',
+    }
+  );
+export const getAdminBitacoras = () =>
+  fetchJson<ApiResponse<BitacoraDto[]>>(
+    '/admin/bitacoras'
   );
 
 export const logoutUsuario = async () => {

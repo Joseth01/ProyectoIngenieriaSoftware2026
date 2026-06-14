@@ -5,109 +5,155 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Helpers\ApiResponse;
-use App\Models\Finca;
+use App\Services\FincaService;
+use App\Services\AuditoriaService;
 
 class FincaController extends Controller
 {
+    public function __construct(
+        private readonly FincaService $fincaService,
+        private readonly AuditoriaService $auditoriaService
+    ) {}
+
     public function listarFincas(Request $request): JsonResponse
     {
-    $fincas = Finca::where('user_id', $request->user()->id)->get();
+        $fincas = $this->fincaService
+            ->listarPorUsuario($request->user());
 
-    return ApiResponse::success(
-        'Fincas obtenidas correctamente',
-        $fincas
-    );
+        return ApiResponse::success(
+            'Fincas obtenidas correctamente',
+            $fincas
+        );
     }
 
     public function crearFinca(Request $request): JsonResponse
     {
-    $datos = $request->validate([
-        'nombre' => 'required|string|max:255',
-        'ubicacion' => 'required|string|max:255',
-    ]);
+        $datos = $request->validate([
+            'nombre' => 'required|string|max:255',
+            'ubicacion' => 'required|string|max:255',
+        ]);
 
-    $datos['user_id'] = $request->user()->id;
+        $finca = $this->fincaService
+            ->crearParaUsuario(
+                $request->user(),
+                $datos
+            );
 
-    $finca = Finca::create($datos);
+        $this->auditoriaService->registrar(
+            accion: 'CREAR_FINCA',
+            modulo: 'Fincas',
+            descripcion: 'El usuario registró una nueva finca.',
+            entidadTipo: 'Finca',
+            entidadId: $finca->id,
+            datosAnteriores: null,
+            datosNuevos: [
+                'id' => $finca->id,
+                'nombre' => $finca->nombre,
+                'ubicacion' => $finca->ubicacion,
+                'user_id' => $finca->user_id,
+            ],
+            usuario: $request->user(),
+            request: $request
+        );
 
-    return ApiResponse::success(
-        'Finca creada correctamente',
-        $finca,
-        201
-    );
+        return ApiResponse::success(
+            'Finca creada correctamente',
+            $finca,
+            201
+        );
     }
 
     public function obtenerFinca($id): JsonResponse
     {
-    $finca = Finca::find($id);
+        $finca = $this->fincaService
+            ->obtenerPorId((int) $id);
 
-    if (!$finca) {
-        return ApiResponse::error(
-            'Finca no encontrada',
-            [],
-            404
+        if (!$finca) {
+            return ApiResponse::error(
+                'Finca no encontrada',
+                [],
+                404
+            );
+        }
+
+        return ApiResponse::success(
+            'Finca obtenida correctamente',
+            $finca
         );
     }
 
-    return ApiResponse::success(
-        'Finca obtenida correctamente',
-        $finca
-    );
-    }
+    public function actualizarFinca(
+        Request $request,
+        $id
+    ): JsonResponse {
+        $finca = $this->fincaService
+            ->obtenerPorUsuario(
+                (int) $id,
+                $request->user()
+            );
 
-    public function actualizarFinca(Request $request, $id): JsonResponse
-    {
-    $finca = Finca::where('id', $id)
-        ->where('user_id', $request->user()->id)
-        ->first();
+        if (!$finca) {
+            return ApiResponse::error(
+                'Finca no encontrada o no pertenece al usuario',
+                [],
+                404
+            );
+        }
 
-    if (!$finca) {
-        return ApiResponse::error(
-            'Finca no encontrada o no pertenece al usuario',
-            [],
-            404
+        $datos = $request->validate([
+            'nombre' => 'required|string|max:255',
+            'ubicacion' => 'required|string|max:255',
+        ]);
+
+        $datosAnteriores = [
+            'nombre' => $finca->nombre,
+            'ubicacion' => $finca->ubicacion,
+        ];
+
+        $fincaActualizada = $this->fincaService
+            ->actualizar(
+                $finca,
+                $datos
+            );
+
+        $this->auditoriaService->registrar(
+            accion: 'ACTUALIZAR_FINCA',
+            modulo: 'Fincas',
+            descripcion: 'El usuario actualizó los datos de una finca.',
+            entidadTipo: 'Finca',
+            entidadId: $fincaActualizada->id,
+            datosAnteriores: $datosAnteriores,
+            datosNuevos: [
+                'nombre' => $fincaActualizada->nombre,
+                'ubicacion' => $fincaActualizada->ubicacion,
+            ],
+            usuario: $request->user(),
+            request: $request
         );
-    }
 
-    $datos = $request->validate([
-        'nombre' => 'required|string|max:255',
-        'ubicacion' => 'required|string|max:255',
-    ]);
-
-    $finca->update($datos);
-
-    return ApiResponse::success(
-        'Finca actualizada correctamente',
-        $finca->fresh()
-    );
+        return ApiResponse::success(
+            'Finca actualizada correctamente',
+            $fincaActualizada
+        );
     }
 
     public function eliminarFinca($id): JsonResponse
     {
-    $finca = Finca::find($id);
-
-    if (!$finca) {
         return ApiResponse::error(
-            'Finca no encontrada',
+            'La eliminación de fincas no está permitida para proteger los datos relacionados.',
             [],
-            404
+            403
         );
     }
 
-    $finca->delete();
-
-    return ApiResponse::success(
-        'Finca eliminada correctamente'
-    );
-    }
-
-  public function obtenerFincasPorUsuario($user_id): JsonResponse
+    public function obtenerFincasPorUsuario($user_id): JsonResponse
     {
-    $fincas = Finca::where('user_id', $user_id)->get();
+        $fincas = $this->fincaService
+            ->listarPorUsuarioId((int) $user_id);
 
-    return ApiResponse::success(
-        'Fincas del usuario obtenidas correctamente',
-        $fincas
-    );
+        return ApiResponse::success(
+            'Fincas del usuario obtenidas correctamente',
+            $fincas
+        );
     }
 }

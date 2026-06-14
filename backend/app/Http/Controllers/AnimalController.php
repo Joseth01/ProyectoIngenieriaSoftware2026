@@ -3,9 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\ApiResponse;
-use App\Models\Animal;
 use App\Models\Finca;
 use App\Models\Raza;
+use App\Services\AnimalService;
+use App\Services\AuditoriaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -25,6 +26,11 @@ class AnimalController extends Controller
         'El número de arete no tiene un formato válido de SENASA. '
         . 'Debe contener dígitos (prefijo de país y separadores opcionales), '
         . 'ej: CR005, 001-2026 o 188000123456.';
+
+    public function __construct(
+        private readonly AnimalService $animalService,
+        private readonly AuditoriaService $auditoriaService
+    ) {}
 
     public function razas(): JsonResponse
     {
@@ -61,16 +67,30 @@ class AnimalController extends Controller
             );
         }
 
-        $animal = Animal::create([
-            'numero_arete'     => $datos['numero_arete'],
-            'nombre'           => $datos['nombre'],
-            'raza_id'          => $datos['raza_id'],
-            'fecha_nacimiento' => $datos['fecha_nacimiento'],
-            'finca_id'         => $datos['finca_id'],
-            'estado'           => $datos['estado'] ?? 'activo',
-        ]);
+        $animal = $this->animalService
+            ->registrar($datos);
 
-        $animal->load(['raza', 'finca']);
+        $this->auditoriaService->registrar(
+            accion: 'CREAR_ANIMAL',
+            modulo: 'Animales',
+            descripcion: 'El usuario registró un nuevo animal.',
+            entidadTipo: 'Animal',
+            entidadId: $animal->id,
+            datosAnteriores: null,
+            datosNuevos: [
+                'id' => $animal->id,
+                'numero_arete' => $animal->numero_arete,
+                'nombre' => $animal->nombre,
+                'raza_id' => $animal->raza_id,
+                'raza' => $animal->raza?->nombre,
+                'fecha_nacimiento' => $animal->fecha_nacimiento,
+                'estado' => $animal->estado,
+                'finca_id' => $animal->finca_id,
+                'finca' => $animal->finca?->nombre,
+            ],
+            usuario: $request->user(),
+            request: $request
+        );
 
         return ApiResponse::success(
             'Animal registrado correctamente',
@@ -81,12 +101,8 @@ class AnimalController extends Controller
 
     public function listar(Request $request): JsonResponse
     {
-        $animales = Animal::with(['raza', 'finca'])
-            ->whereHas('finca', function ($query) use ($request) {
-                $query->where('user_id', $request->user()->id);
-            })
-            ->orderBy('id', 'desc')
-            ->get();
+        $animales = $this->animalService
+            ->listarPorUsuario($request->user());
 
         return ApiResponse::success(
             'Animales obtenidos correctamente',
@@ -96,12 +112,11 @@ class AnimalController extends Controller
 
     public function buscarPorArete(Request $request, string $arete): JsonResponse
     {
-        $animal = Animal::with(['raza', 'finca'])
-            ->where('numero_arete', $arete)
-            ->whereHas('finca', function ($query) use ($request) {
-                $query->where('user_id', $request->user()->id);
-            })
-            ->first();
+        $animal = $this->animalService
+            ->buscarPorArete(
+                $arete,
+                $request->user()
+            );
 
         if (!$animal) {
             return ApiResponse::error(
@@ -119,16 +134,11 @@ class AnimalController extends Controller
 
     public function historial(Request $request, int $id): JsonResponse
     {
-        $animal = Animal::with([
-                'raza',
-                'finca',
-                'pesajes.fuente',
-            ])
-            ->where('id', $id)
-            ->whereHas('finca', function ($query) use ($request) {
-                $query->where('user_id', $request->user()->id);
-            })
-            ->first();
+        $animal = $this->animalService
+            ->historialPorUsuario(
+                $id,
+                $request->user()
+            );
 
         if (!$animal) {
             return ApiResponse::error(
@@ -152,12 +162,11 @@ class AnimalController extends Controller
 
     public function obtener(Request $request, int $id): JsonResponse
     {
-        $animal = Animal::with(['raza', 'finca'])
-            ->where('id', $id)
-            ->whereHas('finca', function ($query) use ($request) {
-                $query->where('user_id', $request->user()->id);
-            })
-            ->first();
+        $animal = $this->animalService
+            ->obtenerPorUsuario(
+                $id,
+                $request->user()
+            );
 
         if (!$animal) {
             return ApiResponse::error(
@@ -175,12 +184,11 @@ class AnimalController extends Controller
 
     public function actualizar(Request $request, int $id): JsonResponse
     {
-        $animal = Animal::with(['raza', 'finca'])
-            ->where('id', $id)
-            ->whereHas('finca', function ($query) use ($request) {
-                $query->where('user_id', $request->user()->id);
-            })
-            ->first();
+        $animal = $this->animalService
+            ->obtenerPorUsuario(
+                $id,
+                $request->user()
+            );
 
         if (!$animal) {
             return ApiResponse::error(
@@ -221,23 +229,69 @@ class AnimalController extends Controller
             }
         }
 
-        $animal->update($datos);
+        $datosAnteriores = [
+            'numero_arete' => $animal->numero_arete,
+            'nombre' => $animal->nombre,
+            'raza_id' => $animal->raza_id,
+            'raza' => $animal->raza?->nombre,
+            'fecha_nacimiento' => $animal->fecha_nacimiento,
+            'estado' => $animal->estado,
+            'finca_id' => $animal->finca_id,
+            'finca' => $animal->finca?->nombre,
+        ];
 
-        $animal->load(['raza', 'finca']);
+        $animalActualizado = $this->animalService
+            ->actualizar(
+                $animal,
+                $datos
+            );
+
+        $accion = 'ACTUALIZAR_ANIMAL';
+        $descripcion = 'El usuario actualizó los datos de un animal.';
+
+        if (
+            array_key_exists('estado', $datos) &&
+            $datosAnteriores['estado'] !== $animalActualizado->estado &&
+            $animalActualizado->estado === 'inactivo'
+        ) {
+            $accion = 'DESACTIVAR_ANIMAL';
+            $descripcion = 'El usuario desactivó un animal.';
+        }
+
+        $this->auditoriaService->registrar(
+            accion: $accion,
+            modulo: 'Animales',
+            descripcion: $descripcion,
+            entidadTipo: 'Animal',
+            entidadId: $animalActualizado->id,
+            datosAnteriores: $datosAnteriores,
+            datosNuevos: [
+                'numero_arete' => $animalActualizado->numero_arete,
+                'nombre' => $animalActualizado->nombre,
+                'raza_id' => $animalActualizado->raza_id,
+                'raza' => $animalActualizado->raza?->nombre,
+                'fecha_nacimiento' => $animalActualizado->fecha_nacimiento,
+                'estado' => $animalActualizado->estado,
+                'finca_id' => $animalActualizado->finca_id,
+                'finca' => $animalActualizado->finca?->nombre,
+            ],
+            usuario: $request->user(),
+            request: $request
+        );
 
         return ApiResponse::success(
             'Animal actualizado correctamente',
-            $animal
+            $animalActualizado
         );
     }
 
     public function eliminar(Request $request, int $id): JsonResponse
     {
-        $animal = Animal::where('id', $id)
-            ->whereHas('finca', function ($query) use ($request) {
-                $query->where('user_id', $request->user()->id);
-            })
-            ->first();
+        $animal = $this->animalService
+            ->obtenerPorUsuario(
+                $id,
+                $request->user()
+            );
 
         if (!$animal) {
             return ApiResponse::error(
@@ -247,12 +301,38 @@ class AnimalController extends Controller
             );
         }
 
-        $animal->update([
-            'estado' => 'inactivo',
-        ]);
+        $datosAnteriores = [
+            'numero_arete' => $animal->numero_arete,
+            'nombre' => $animal->nombre,
+            'estado' => $animal->estado,
+            'finca_id' => $animal->finca_id,
+            'finca' => $animal->finca?->nombre,
+        ];
+
+        $animalActualizado = $this->animalService
+            ->desactivar($animal);
+
+        $this->auditoriaService->registrar(
+            accion: 'DESACTIVAR_ANIMAL',
+            modulo: 'Animales',
+            descripcion: 'El usuario desactivó un animal.',
+            entidadTipo: 'Animal',
+            entidadId: $animalActualizado->id,
+            datosAnteriores: $datosAnteriores,
+            datosNuevos: [
+                'numero_arete' => $animalActualizado->numero_arete,
+                'nombre' => $animalActualizado->nombre,
+                'estado' => $animalActualizado->estado,
+                'finca_id' => $animalActualizado->finca_id,
+                'finca' => $animalActualizado->finca?->nombre,
+            ],
+            usuario: $request->user(),
+            request: $request
+        );
 
         return ApiResponse::success(
-            'Animal desactivado correctamente'
+            'Animal desactivado correctamente',
+            $animalActualizado
         );
     }
 }

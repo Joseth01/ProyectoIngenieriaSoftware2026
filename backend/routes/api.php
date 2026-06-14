@@ -7,6 +7,7 @@ use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\ImagenController;
 use App\Http\Controllers\AnimalController;
 use App\Http\Controllers\UsuarioController;
+use App\Http\Controllers\BitacoraController;
 
 // RUTAS PÚBLICAS DE USUARIOS
 Route::prefix('usuarios')->group(function () {
@@ -25,7 +26,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [UsuarioController::class, 'logout']);
         Route::get('/perfil-completo', [UsuarioController::class, 'perfilCompleto']);
     });
+    // ADMINISTRACIÓN
+        Route::prefix('admin')->group(function () {
+        Route::get('/usuarios', [UsuarioController::class, 'listarUsuariosAdmin']);
+        Route::patch('/usuarios/{id}/estado', [UsuarioController::class, 'cambiarEstadoUsuarioAdmin']);
 
+        Route::get('/bitacoras', [BitacoraController::class, 'listar']);
+        });
     // FINCAS
     Route::prefix('fincas')->group(function () {
         Route::post('/', [FincaController::class, 'crearFinca']);
