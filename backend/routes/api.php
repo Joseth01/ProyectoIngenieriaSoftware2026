@@ -8,6 +8,7 @@ use App\Http\Controllers\ImagenController;
 use App\Http\Controllers\AnimalController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\BitacoraController;
+use App\Http\Controllers\VeterinarioController;
 
 // RUTAS PÚBLICAS DE USUARIOS
 Route::prefix('usuarios')->group(function () {
@@ -33,6 +34,15 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/bitacoras', [BitacoraController::class, 'listar']);
         });
+// VETERINARIO
+Route::prefix('veterinario')->group(function () {
+    Route::get('/perfil', [VeterinarioController::class, 'perfil']);
+    Route::put('/perfil', [VeterinarioController::class, 'actualizarPerfil']);
+    Route::get('/fincas', [VeterinarioController::class, 'fincas']);
+    Route::get('/animales', [VeterinarioController::class, 'animales']);
+    Route::get('/animales/{id}', [VeterinarioController::class, 'detalleAnimal']);
+});
+
     // FINCAS
     Route::prefix('fincas')->group(function () {
         Route::post('/', [FincaController::class, 'crearFinca']);

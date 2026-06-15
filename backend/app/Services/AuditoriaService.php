@@ -130,28 +130,48 @@ class AuditoriaService
             request: $request
         );
     }
+
+    public function registrarActualizacionPerfilVeterinario(
+        User $veterinario,
+        array $datosAnteriores,
+        array $datosNuevos,
+        Request $request
+    ): void {
+        $this->registrar(
+            accion: 'ACTUALIZAR_PERFIL_VETERINARIO',
+            modulo: 'Veterinario',
+            descripcion: 'El veterinario actualizó su perfil profesional.',
+            entidadTipo: 'PerfilVeterinario',
+            entidadId: $datosNuevos['id'] ?? null,
+            datosAnteriores: $datosAnteriores,
+            datosNuevos: $datosNuevos,
+            usuario: $veterinario,
+            request: $request
+        );
+    }
+
     public function listarBitacorasAdmin()
-{
-    return Bitacora::with([
-        'usuario:id,name,email,rol'
-    ])
-        ->select(
-            'id',
-            'user_id',
-            'accion',
-            'modulo',
-            'descripcion',
-            'entidad_tipo',
-            'entidad_id',
-            'ip',
-            'user_agent',
-            'datos_anteriores',
-            'datos_nuevos',
-            'created_at',
-            'updated_at'
-        )
-        ->orderByDesc('created_at')
-        ->limit(100)
-        ->get();
-}
+    {
+        return Bitacora::with([
+            'usuario:id,name,email,rol',
+        ])
+            ->select(
+                'id',
+                'user_id',
+                'accion',
+                'modulo',
+                'descripcion',
+                'entidad_tipo',
+                'entidad_id',
+                'ip',
+                'user_agent',
+                'datos_anteriores',
+                'datos_nuevos',
+                'created_at',
+                'updated_at'
+            )
+            ->orderByDesc('created_at')
+            ->limit(100)
+            ->get();
+    }
 }

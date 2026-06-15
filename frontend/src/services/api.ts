@@ -20,6 +20,7 @@ export interface UsuarioDto {
   created_at?: string;
   updated_at?: string;
 }
+
 export interface BitacoraDto {
   id: number;
   user_id?: number | null;
@@ -36,6 +37,7 @@ export interface BitacoraDto {
   updated_at?: string;
   usuario?: UsuarioDto | null;
 }
+
 export interface LoginDto {
   email: string;
   password: string;
@@ -72,6 +74,8 @@ export interface FincaDto {
   user_id?: number;
   created_at?: string;
   updated_at?: string;
+  usuario?: UsuarioDto | null;
+  propietario?: UsuarioDto | null;
 }
 
 export interface AnimalDto {
@@ -183,6 +187,31 @@ export interface ConfirmarPesajeIAParams {
   fuente_id?: number | null;
 }
 
+/* =========================
+   VETERINARIO - TIPOS
+========================= */
+
+export interface PerfilVeterinarioDto {
+  id: number;
+  user_id: number;
+  codigo_colegiado?: string | null;
+  telefono_urgencias?: string | null;
+  especialidad?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface VeterinarioPerfilDto {
+  usuario: UsuarioDto;
+  perfil_veterinario: PerfilVeterinarioDto;
+  total_fincas: number;
+  total_animales: number;
+}
+
+/* =========================
+   SESIÓN
+========================= */
+
 export function getToken(): string | null {
   return localStorage.getItem('token');
 }
@@ -212,6 +241,11 @@ export function guardarSesion(
 export function limpiarSesion(): void {
   localStorage.removeItem('token');
   localStorage.removeItem('user');
+  localStorage.removeItem('perfil');
+  localStorage.removeItem('animalSel');
+  localStorage.removeItem('fincaSel');
+  localStorage.removeItem('pesajeSel');
+  sessionStorage.clear();
 }
 
 async function fetchJson<T>(
@@ -244,6 +278,10 @@ async function fetchJson<T>(
     data = await response.json();
   } catch {
     data = null;
+  }
+
+  if (data && data.datos === undefined && data.data !== undefined) {
+    data.datos = data.data;
   }
 
   if (!response.ok) {
@@ -318,7 +356,8 @@ export const getPerfil = () =>
   fetchJson<ApiResponse<UsuarioDto>>(
     '/usuarios/perfil'
   );
-  export const actualizarPerfil = (
+
+export const actualizarPerfil = (
   data: {
     name: string;
     email: string;
@@ -336,23 +375,68 @@ export const getPerfilCompleto = () =>
   fetchJson<ApiResponse<PerfilCompletoDto>>(
     '/usuarios/perfil-completo'
   );
-  /* =========================
+
+/* =========================
    ADMINISTRACIÓN
 ========================= */
+
 export const getAdminUsuarios = () =>
   fetchJson<ApiResponse<UsuarioDto[]>>(
     '/admin/usuarios'
   );
-  export const cambiarEstadoUsuarioAdmin = (id: number) =>
+
+export const cambiarEstadoUsuarioAdmin = (id: number) =>
   fetchJson<ApiResponse<UsuarioDto>>(
     `/admin/usuarios/${id}/estado`,
     {
-      method: 'PATCH',
+      method: 'PATCH'
     }
   );
+
 export const getAdminBitacoras = () =>
   fetchJson<ApiResponse<BitacoraDto[]>>(
     '/admin/bitacoras'
+  );
+
+/* =========================
+   VETERINARIO
+========================= */
+
+export const getPerfilVeterinario = () =>
+  fetchJson<ApiResponse<VeterinarioPerfilDto>>(
+    '/veterinario/perfil'
+  );
+
+export const actualizarPerfilVeterinario = (
+  data: {
+    codigo_colegiado?: string | null;
+    telefono_urgencias?: string | null;
+    especialidad?: string | null;
+  }
+) =>
+  fetchJson<ApiResponse<PerfilVeterinarioDto>>(
+    '/veterinario/perfil',
+    {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }
+  );
+
+export const getVeterinarioFincas = () =>
+  fetchJson<ApiResponse<FincaDto[]>>(
+    '/veterinario/fincas'
+  );
+
+export const getVeterinarioAnimales = () =>
+  fetchJson<ApiResponse<AnimalDto[]>>(
+    '/veterinario/animales'
+  );
+
+export const getVeterinarioAnimalDetalle = (
+  id: number
+) =>
+  fetchJson<ApiResponse<AnimalDto>>(
+    `/veterinario/animales/${id}`
   );
 
 export const logoutUsuario = async () => {
@@ -535,6 +619,7 @@ export const estimarPesoPorImagen = (
     }
   );
 };
+
 /**
  * Guarda el pesaje confirmado por el usuario y guarda la imagen ligada al pesaje.
  * Esta función necesita que en Laravel exista:

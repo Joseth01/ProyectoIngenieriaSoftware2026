@@ -132,7 +132,7 @@
                 :type="mostrarPassword ? 'text' : 'password'"
                 class="field-input"
                 placeholder="••••••••"
-                autocomplete="current-password"
+                :autocomplete="modo === 'login' ? 'current-password' : 'new-password'"
                 @keyup.enter="submit"
               />
 
@@ -299,6 +299,10 @@ function obtenerRutaInicial(usuario: UsuarioDto): string {
     return '/admin/usuarios';
   }
 
+  if (rolUsuario === 'veterinario') {
+    return '/veterinario';
+  }
+
   return '/tabs/dashboard';
 }
 
@@ -376,6 +380,7 @@ async function hacerRegistro() {
       name: nombre.value.trim(),
       email: email.value.trim(),
       password: password.value,
+      password_confirmation: confirmarPassword.value,
       rol: rol.value,
     });
 

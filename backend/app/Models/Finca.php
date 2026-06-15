@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
 use App\Models\Animal;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Finca extends Model
 {
