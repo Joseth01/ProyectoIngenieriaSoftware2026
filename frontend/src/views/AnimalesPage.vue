@@ -119,6 +119,10 @@
             <button class="action-btn primary" @click="abrirEditorAnimal(animal)">
               Editar animal
             </button>
+
+            <button class="action-btn warning" @click="abrirSolicitudVeterinaria(animal)">
+              Solicitar revisión
+            </button>
           </div>
         </div>
 
@@ -178,7 +182,6 @@
 
               <div v-else>
 
-                <!-- GRÁFICA DE EVOLUCIÓN DE PESO -->
                 <div v-if="graficaPeso.tieneGrafica" class="chart-card">
                   <div class="chart-head">
                     <span class="chart-title">Evolución de peso</span>
@@ -231,153 +234,153 @@
                 </div>
 
                 <div class="hist-list">
-                <div
-                  v-for="item in historialCalculado"
-                  :key="item.pesaje.id"
-                  class="hist-row-wrap"
-                >
                   <div
-                    class="hist-row"
-                    :class="{ 'hist-row-invalid': item.fueraRango }"
+                    v-for="item in historialCalculado"
+                    :key="item.pesaje.id"
+                    class="hist-row-wrap"
                   >
                     <div
-                      class="hist-dot"
-                      :class="{ 'hist-dot-first': item.esUltimo }"
-                    ></div>
-
-                    <div class="hist-main">
-                      <div class="hist-date">
-                        {{ formatFecha(item.pesaje.fecha) }} · {{ item.pesaje.fuente?.nombre || 'Sin fuente' }}
-                      </div>
-
-                      <div
-                        v-if="item.fueraRango"
-                        class="hist-warning"
-                      >
-                        Peso fuera de rango. Revisa este registro.
-                      </div>
-                    </div>
-
-                    <div class="hist-values">
-                      <div class="hist-w">
-                        {{ item.peso.toFixed(0) }} kg
-                      </div>
-
-                      <div
-                        v-if="item.diferencia !== null"
-                        class="hist-d"
-                        :class="item.diferencia >= 0 ? 'diff-up' : 'diff-dn'"
-                      >
-                        {{ item.diferencia >= 0 ? '+' : '' }}{{ item.diferencia.toFixed(0) }} kg
-                      </div>
-
-                      <div v-else class="hist-d hist-d-empty">
-                        Inicial
-                      </div>
-                    </div>
-
-                    <button
-                      v-if="item.esUltimo"
-                      class="edit-mini-btn"
-                      @click.stop="activarEdicionPesaje(item.pesaje)"
+                      class="hist-row"
+                      :class="{ 'hist-row-invalid': item.fueraRango }"
                     >
-                      Editar
-                    </button>
-                  </div>
+                      <div
+                        class="hist-dot"
+                        :class="{ 'hist-dot-first': item.esUltimo }"
+                      ></div>
 
-                  <div
-                    v-if="editandoPesajeId === item.pesaje.id"
-                    class="edit-box"
-                  >
-                    <div class="edit-title">
-                      Editar último pesaje
-                    </div>
+                      <div class="hist-main">
+                        <div class="hist-date">
+                          {{ formatFecha(item.pesaje.fecha) }} · {{ item.pesaje.fuente?.nombre || 'Sin fuente' }}
+                        </div>
 
-                    <div class="edit-field">
-                      <label>Peso registrado</label>
-
-                      <div class="input-with-unit" :class="{ 'field-error': pesoEditadoFueraRango }">
-                        <input
-                          v-model.number="editPesajeForm.peso_estimado"
-                          type="number"
-                          min="50"
-                          max="1200"
-                          step="0.1"
-                          placeholder="Ej. 420"
-                        />
-
-                        <span>kg</span>
-                      </div>
-                    </div>
-
-                    <div class="edit-field">
-                      <label>Peso real opcional</label>
-
-                      <div class="input-with-unit" :class="{ 'field-error': pesoRealEditadoFueraRango }">
-                        <input
-                          v-model.number="editPesajeForm.peso_real"
-                          type="number"
-                          min="50"
-                          max="1200"
-                          step="0.1"
-                          placeholder="Opcional"
-                        />
-
-                        <span>kg</span>
+                        <div
+                          v-if="item.fueraRango"
+                          class="hist-warning"
+                        >
+                          Peso fuera de rango. Revisa este registro.
+                        </div>
                       </div>
 
-                      <div class="field-hint">
-                        Si este campo tiene valor, será el peso principal mostrado.
+                      <div class="hist-values">
+                        <div class="hist-w">
+                          {{ item.peso.toFixed(0) }} kg
+                        </div>
+
+                        <div
+                          v-if="item.diferencia !== null"
+                          class="hist-d"
+                          :class="item.diferencia >= 0 ? 'diff-up' : 'diff-dn'"
+                        >
+                          {{ item.diferencia >= 0 ? '+' : '' }}{{ item.diferencia.toFixed(0) }} kg
+                        </div>
+
+                        <div v-else class="hist-d hist-d-empty">
+                          Inicial
+                        </div>
                       </div>
+
+                      <button
+                        v-if="item.esUltimo"
+                        class="edit-mini-btn"
+                        @click.stop="activarEdicionPesaje(item.pesaje)"
+                      >
+                        Editar
+                      </button>
                     </div>
 
-                    <div class="edit-field">
-                      <label>Fecha</label>
+                    <div
+                      v-if="editandoPesajeId === item.pesaje.id"
+                      class="edit-box"
+                    >
+                      <div class="edit-title">
+                        Editar último pesaje
+                      </div>
 
-                      <div class="date-field-wrap">
-                        <input
-                          ref="fechaPesajeInput"
-                          v-model="editPesajeForm.fecha"
-                          type="date"
-                          class="edit-date date-input-real"
-                          :max="hoy"
-                          @click="abrirCalendarioPesaje"
-                          @focus="abrirCalendarioPesaje"
-                        />
+                      <div class="edit-field">
+                        <label>Peso registrado</label>
+
+                        <div class="input-with-unit" :class="{ 'field-error': pesoEditadoFueraRango }">
+                          <input
+                            v-model.number="editPesajeForm.peso_estimado"
+                            type="number"
+                            min="50"
+                            max="1200"
+                            step="0.1"
+                            placeholder="Ej. 420"
+                          />
+
+                          <span>kg</span>
+                        </div>
+                      </div>
+
+                      <div class="edit-field">
+                        <label>Peso real opcional</label>
+
+                        <div class="input-with-unit" :class="{ 'field-error': pesoRealEditadoFueraRango }">
+                          <input
+                            v-model.number="editPesajeForm.peso_real"
+                            type="number"
+                            min="50"
+                            max="1200"
+                            step="0.1"
+                            placeholder="Opcional"
+                          />
+
+                          <span>kg</span>
+                        </div>
+
+                        <div class="field-hint">
+                          Si este campo tiene valor, será el peso principal mostrado.
+                        </div>
+                      </div>
+
+                      <div class="edit-field">
+                        <label>Fecha</label>
+
+                        <div class="date-field-wrap">
+                          <input
+                            ref="fechaPesajeInput"
+                            v-model="editPesajeForm.fecha"
+                            type="date"
+                            class="edit-date date-input-real"
+                            :max="hoy"
+                            @click="abrirCalendarioPesaje"
+                            @focus="abrirCalendarioPesaje"
+                          />
+
+                          <button
+                            type="button"
+                            class="date-picker-btn"
+                            @click="abrirCalendarioPesaje"
+                          >
+                            Seleccionar
+                          </button>
+                        </div>
+                      </div>
+
+                      <div v-if="editPesajeError" class="feedback error">
+                        {{ editPesajeError }}
+                      </div>
+
+                      <div class="edit-actions">
+                        <button
+                          class="btn-outline"
+                          :disabled="guardandoPesaje"
+                          @click="cancelarEdicionPesaje"
+                        >
+                          Cancelar
+                        </button>
 
                         <button
-                          type="button"
-                          class="date-picker-btn"
-                          @click="abrirCalendarioPesaje"
+                          class="btn-primary small"
+                          :disabled="guardandoPesaje"
+                          @click="guardarEdicionPesaje"
                         >
-                          Seleccionar
+                          {{ guardandoPesaje ? 'Guardando...' : 'Guardar cambio' }}
                         </button>
                       </div>
                     </div>
-
-                    <div v-if="editPesajeError" class="feedback error">
-                      {{ editPesajeError }}
-                    </div>
-
-                    <div class="edit-actions">
-                      <button
-                        class="btn-outline"
-                        :disabled="guardandoPesaje"
-                        @click="cancelarEdicionPesaje"
-                      >
-                        Cancelar
-                      </button>
-
-                      <button
-                        class="btn-primary small"
-                        :disabled="guardandoPesaje"
-                        @click="guardarEdicionPesaje"
-                      >
-                        {{ guardandoPesaje ? 'Guardando...' : 'Guardar cambio' }}
-                      </button>
-                    </div>
                   </div>
-                </div>
                 </div>
               </div>
 
@@ -690,6 +693,124 @@
         </ion-content>
       </ion-modal>
 
+      <ion-modal :is-open="modalSolicitudAbierto" @didDismiss="cerrarSolicitudVeterinaria">
+        <ion-content class="modal-content">
+
+          <div class="modal-header">
+            <div>
+              <h2 class="modal-title">
+                Solicitar revisión
+              </h2>
+
+              <div class="modal-sub">
+                {{ animalSel?.nombre || 'Animal' }} · Arete {{ animalSel?.numero_arete || 'No registrado' }}
+              </div>
+            </div>
+
+            <button class="close-btn" @click="cerrarSolicitudVeterinaria">
+              ×
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <div class="edit-box animal-edit-box">
+              <div class="sec-title">
+                Solicitud veterinaria
+              </div>
+
+              <div class="request-animal-card" v-if="animalSel">
+                <div class="request-avatar">
+                  {{ inicialAnimal(animalSel) }}
+                </div>
+
+                <div>
+                  <strong>{{ animalSel.nombre || 'Sin nombre' }}</strong>
+                  <p>
+                    Finca: {{ obtenerNombreFinca(animalSel) }}
+                  </p>
+                  <p>
+                    Último peso: {{ ultimoPeso(animalSel) }}
+                  </p>
+                </div>
+              </div>
+
+              <div class="edit-field">
+                <label>Veterinario</label>
+
+                <select
+                  v-model="solicitudForm.veterinario_id"
+                  class="edit-date"
+                  :disabled="cargandoVeterinarios || enviandoSolicitud"
+                >
+                  <option value="" disabled>
+                    Selecciona un veterinario
+                  </option>
+
+                  <option
+                    v-for="veterinario in veterinariosDisponibles"
+                    :key="veterinario.id"
+                    :value="veterinario.id"
+                  >
+                    {{ veterinario.name }} · {{ veterinario.email }}
+                  </option>
+                </select>
+
+                <div v-if="cargandoVeterinarios" class="field-hint">
+                  Cargando veterinarios disponibles...
+                </div>
+
+                <div v-else-if="veterinariosDisponibles.length === 0" class="field-hint">
+                  No hay veterinarios activos disponibles.
+                </div>
+              </div>
+
+              <div class="edit-field">
+                <label>Motivo de la solicitud</label>
+
+                <textarea
+                  v-model.trim="solicitudForm.motivo"
+                  class="edit-textarea"
+                  rows="5"
+                  placeholder="Ej. El animal bajó de peso y necesito una revisión."
+                  :disabled="enviandoSolicitud"
+                ></textarea>
+
+                <div class="field-hint">
+                  Explica brevemente por qué necesitas la revisión.
+                </div>
+              </div>
+
+              <div v-if="solicitudError" class="feedback error">
+                {{ solicitudError }}
+              </div>
+
+              <div v-if="solicitudSuccess" class="feedback success">
+                {{ solicitudSuccess }}
+              </div>
+
+              <div class="edit-actions">
+                <button
+                  class="btn-outline"
+                  :disabled="enviandoSolicitud"
+                  @click="cerrarSolicitudVeterinaria"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  class="btn-primary small"
+                  :disabled="enviandoSolicitud || cargandoVeterinarios || veterinariosDisponibles.length === 0"
+                  @click="enviarSolicitudVeterinaria"
+                >
+                  {{ enviandoSolicitud ? 'Enviando...' : 'Enviar solicitud' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </ion-content>
+      </ion-modal>
+
     </ion-content>
   </ion-page>
 </template>
@@ -715,12 +836,15 @@ import {
   getHistorialAnimal,
   getRazas,
   getFincasByUsuario,
+  getVeterinariosDisponibles,
+  crearSolicitudVeterinaria,
   pesoNumerico,
   formatFecha,
   type AnimalDto,
   type PesajeDto,
   type RazaDto,
   type FincaDto,
+  type UsuarioDto,
 } from '@/services/api';
 
 const PESO_MINIMO = 50;
@@ -735,6 +859,8 @@ const animales = ref<AnimalDto[]>([]);
 const razas = ref<RazaDto[]>([]);
 const fincas = ref<FincaDto[]>([]);
 
+const veterinariosDisponibles = ref<UsuarioDto[]>([]);
+
 const loading = ref(true);
 const error = ref('');
 const busqueda = ref('');
@@ -743,6 +869,7 @@ const filtro = ref('todos');
 const animalSel = ref<AnimalDto | null>(null);
 const modalAbierto = ref(false);
 const modalCrearAbierto = ref(false);
+const modalSolicitudAbierto = ref(false);
 const modalModo = ref<'historial' | 'editar'>('historial');
 
 const historialAnimal = ref<PesajeDto[]>([]);
@@ -760,6 +887,11 @@ const editAnimalSuccess = ref('');
 const guardandoNuevoAnimal = ref(false);
 const crearAnimalError = ref('');
 const crearAnimalSuccess = ref('');
+
+const cargandoVeterinarios = ref(false);
+const enviandoSolicitud = ref(false);
+const solicitudError = ref('');
+const solicitudSuccess = ref('');
 
 const hoy = new Date().toISOString().slice(0, 10);
 
@@ -807,6 +939,14 @@ const nuevoAnimalForm = ref<{
   raza_id: '',
   finca_id: '',
   fecha_nacimiento: hoy,
+});
+
+const solicitudForm = ref<{
+  veterinario_id: number | '';
+  motivo: string;
+}>({
+  veterinario_id: '',
+  motivo: '',
 });
 
 let userId: number | undefined;
@@ -859,14 +999,12 @@ const historialCalculado = computed(() => {
   return descendente;
 });
 
-// Datos para el sparkline de evolución de peso (orden cronológico ascendente)
 const graficaPeso = computed(() => {
   const serie = [...historialAnimal.value]
     .sort((a, b) => ordenarPesajesAsc(a, b))
     .map(p => ({ peso: pesoNumerico(p), fecha: p.fecha }))
     .filter(p => pesoEnRango(p.peso));
 
-  // Se necesitan al menos 2 puntos válidos para dibujar una línea
   if (serie.length < 2) {
     return { tieneGrafica: false } as const;
   }
@@ -889,14 +1027,14 @@ const graficaPeso = computed(() => {
   });
 
   const linea = coords.map(c => `${c.x},${c.y}`).join(' ');
-  // Área bajo la curva: misma línea cerrada hacia la base
   const area = `${linea} ${coords[n - 1].x},${H} ${coords[0].x},${H}`;
 
   const cambioTotal = serie[n - 1].peso - serie[0].peso;
 
   return {
     tieneGrafica: true,
-    W, H,
+    W,
+    H,
     linea,
     area,
     coords,
@@ -1147,7 +1285,11 @@ function extraerErrores(data: any, mensajeDefault: string): string {
     return Object.values(data.errores).flat().join(' ');
   }
 
-  return data?.mensaje || mensajeDefault;
+  if (data?.errors) {
+    return Object.values(data.errors).flat().join(' ');
+  }
+
+  return data?.mensaje || data?.message || mensajeDefault;
 }
 
 async function cargarHistorialesParaLista(listaAnimales: AnimalDto[]) {
@@ -1165,6 +1307,115 @@ async function cargarHistorialesParaLista(listaAnimales: AnimalDto[]) {
   );
 
   historialesPorAnimal.value = Object.fromEntries(pares);
+}
+
+async function cargarVeterinariosDisponibles() {
+  cargandoVeterinarios.value = true;
+  solicitudError.value = '';
+
+  try {
+    const res = await getVeterinariosDisponibles();
+    veterinariosDisponibles.value = res.datos || [];
+
+    if (
+      veterinariosDisponibles.value.length > 0 &&
+      !solicitudForm.value.veterinario_id
+    ) {
+      solicitudForm.value.veterinario_id = veterinariosDisponibles.value[0].id;
+    }
+  } catch (e: any) {
+    solicitudError.value = e.message || 'No se pudieron cargar los veterinarios.';
+    veterinariosDisponibles.value = [];
+  } finally {
+    cargandoVeterinarios.value = false;
+  }
+}
+
+async function abrirSolicitudVeterinaria(animal: AnimalDto) {
+  animalSel.value = animal;
+  modalSolicitudAbierto.value = true;
+  solicitudError.value = '';
+  solicitudSuccess.value = '';
+
+  solicitudForm.value = {
+    veterinario_id: '',
+    motivo: '',
+  };
+
+  if (veterinariosDisponibles.value.length === 0) {
+    await cargarVeterinariosDisponibles();
+  } else {
+    solicitudForm.value.veterinario_id = veterinariosDisponibles.value[0]?.id || '';
+  }
+}
+
+function cerrarSolicitudVeterinaria() {
+  modalSolicitudAbierto.value = false;
+  solicitudError.value = '';
+  solicitudSuccess.value = '';
+
+  solicitudForm.value = {
+    veterinario_id: '',
+    motivo: '',
+  };
+
+  animalSel.value = null;
+}
+
+function validarSolicitudVeterinaria(): string | null {
+  if (!animalSel.value) {
+    return 'No se seleccionó un animal para la solicitud.';
+  }
+
+  if (!solicitudForm.value.veterinario_id) {
+    return 'Selecciona un veterinario.';
+  }
+
+  if (!solicitudForm.value.motivo.trim()) {
+    return 'Escribe el motivo de la solicitud.';
+  }
+
+  if (solicitudForm.value.motivo.trim().length < 5) {
+    return 'El motivo debe tener al menos 5 caracteres.';
+  }
+
+  return null;
+}
+
+async function enviarSolicitudVeterinaria() {
+  const errorValidacion = validarSolicitudVeterinaria();
+
+  if (errorValidacion) {
+    solicitudError.value = errorValidacion;
+    solicitudSuccess.value = '';
+    return;
+  }
+
+  if (!animalSel.value) {
+    return;
+  }
+
+  enviandoSolicitud.value = true;
+  solicitudError.value = '';
+  solicitudSuccess.value = '';
+
+  try {
+    await crearSolicitudVeterinaria({
+      animal_id: animalSel.value.id,
+      veterinario_id: Number(solicitudForm.value.veterinario_id),
+      motivo: solicitudForm.value.motivo.trim(),
+    });
+
+    solicitudSuccess.value = 'Solicitud enviada correctamente al veterinario.';
+
+    setTimeout(() => {
+      cerrarSolicitudVeterinaria();
+    }, 850);
+  } catch (e: any) {
+    solicitudError.value = e.message || 'No se pudo enviar la solicitud veterinaria.';
+  } finally {
+    enviandoSolicitud.value = false;
+  }
 }
 
 async function abrirHistorial(animal: AnimalDto) {
@@ -1835,7 +2086,7 @@ onIonViewWillEnter(() => {
 
 .card-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
   margin-top: 14px;
 }
@@ -1858,6 +2109,11 @@ onIonViewWillEnter(() => {
 .action-btn.secondary {
   background: #EEF9F2;
   color: #1E5631;
+}
+
+.action-btn.warning {
+  background: #FFF7ED;
+  color: #9A3412;
 }
 
 .modal-content {
@@ -2167,7 +2423,8 @@ select.edit-date {
 }
 
 .input-with-unit input:focus,
-.edit-date:focus {
+.edit-date:focus,
+.edit-textarea:focus {
   border-color: #1E5631;
 }
 
@@ -2177,6 +2434,21 @@ select.edit-date {
   font-size: .8rem;
   color: #6B7280;
   font-weight: 800;
+}
+
+.edit-textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1.5px solid #E5E7EB;
+  border-radius: 12px;
+  background: white;
+  color: #111827;
+  font-size: .875rem;
+  outline: none;
+  box-sizing: border-box;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 110px;
 }
 
 .field-error input {
@@ -2280,5 +2552,59 @@ select.edit-date {
 
 .date-picker-btn:hover {
   opacity: .94;
+}
+
+.request-animal-card {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: #F2F5F3;
+  border-radius: 14px;
+  padding: 12px;
+  margin-bottom: 14px;
+}
+
+.request-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #E8F5EE, #C6E8D4);
+  color: #1E5631;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .78rem;
+  font-weight: 900;
+  flex-shrink: 0;
+}
+
+.request-animal-card strong {
+  display: block;
+  color: #1A3D28;
+  font-size: .9rem;
+}
+
+.request-animal-card p {
+  margin: 2px 0 0;
+  color: #6B7280;
+  font-size: .74rem;
+}
+
+@media (max-width: 720px) {
+  .card-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .card-top {
+    align-items: flex-start;
+  }
+
+  .card-right {
+    min-width: 82px;
+  }
+
+  .edit-actions {
+    flex-direction: column;
+  }
 }
 </style>

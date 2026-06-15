@@ -2,6 +2,12 @@ const API_BASE = 'http://127.0.0.1:8000/api';
 
 export type RolUsuario = 'admin' | 'ganadero' | 'veterinario';
 
+export type EstadoSolicitudVeterinaria =
+  | 'pendiente'
+  | 'en_revision'
+  | 'atendida'
+  | 'rechazada';
+
 export interface ApiResponse<T> {
   success?: boolean;
   message?: string;
@@ -74,7 +80,11 @@ export interface FincaDto {
   user_id?: number;
   created_at?: string;
   updated_at?: string;
+
+  // Algunas respuestas antiguas podrían usar usuario.
   usuario?: UsuarioDto | null;
+
+  // En tu modelo Finca.php la relación correcta se llama propietario().
   propietario?: UsuarioDto | null;
 }
 
@@ -206,6 +216,41 @@ export interface VeterinarioPerfilDto {
   perfil_veterinario: PerfilVeterinarioDto;
   total_fincas: number;
   total_animales: number;
+}
+
+/* =========================
+   SOLICITUDES VETERINARIAS - TIPOS
+========================= */
+
+export interface SolicitudVeterinariaDto {
+  id: number;
+  animal_id: number;
+  finca_id: number;
+  ganadero_id: number;
+  veterinario_id: number;
+  motivo: string;
+  estado: EstadoSolicitudVeterinaria;
+  respuesta_veterinario?: string | null;
+  fecha_solicitud?: string | null;
+  fecha_atencion?: string | null;
+  created_at?: string;
+  updated_at?: string;
+
+  animal?: AnimalDto | null;
+  finca?: FincaDto | null;
+  ganadero?: UsuarioDto | null;
+  veterinario?: UsuarioDto | null;
+}
+
+export interface CrearSolicitudVeterinariaDto {
+  animal_id: number;
+  veterinario_id: number;
+  motivo: string;
+}
+
+export interface ResponderSolicitudVeterinariaDto {
+  estado: 'en_revision' | 'atendida' | 'rechazada';
+  respuesta_veterinario?: string | null;
 }
 
 /* =========================
@@ -376,6 +421,19 @@ export const getPerfilCompleto = () =>
     '/usuarios/perfil-completo'
   );
 
+export const logoutUsuario = async () => {
+  try {
+    await fetchJson<ApiResponse<null>>(
+      '/usuarios/logout',
+      {
+        method: 'POST'
+      }
+    );
+  } finally {
+    limpiarSesion();
+  }
+};
+
 /* =========================
    ADMINISTRACIÓN
 ========================= */
@@ -439,18 +497,47 @@ export const getVeterinarioAnimalDetalle = (
     `/veterinario/animales/${id}`
   );
 
-export const logoutUsuario = async () => {
-  try {
-    await fetchJson<ApiResponse<null>>(
-      '/usuarios/logout',
-      {
-        method: 'POST'
-      }
-    );
-  } finally {
-    limpiarSesion();
-  }
-};
+/* =========================
+   SOLICITUDES VETERINARIAS
+========================= */
+
+export const getVeterinariosDisponibles = () =>
+  fetchJson<ApiResponse<UsuarioDto[]>>(
+    '/solicitudes-veterinarias/veterinarios-disponibles'
+  );
+
+export const crearSolicitudVeterinaria = (
+  data: CrearSolicitudVeterinariaDto
+) =>
+  fetchJson<ApiResponse<SolicitudVeterinariaDto>>(
+    '/solicitudes-veterinarias',
+    {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }
+  );
+
+export const getSolicitudesVeterinariasGanadero = () =>
+  fetchJson<ApiResponse<SolicitudVeterinariaDto[]>>(
+    '/solicitudes-veterinarias/ganadero'
+  );
+
+export const getSolicitudesVeterinariasVeterinario = () =>
+  fetchJson<ApiResponse<SolicitudVeterinariaDto[]>>(
+    '/solicitudes-veterinarias/veterinario'
+  );
+
+export const responderSolicitudVeterinaria = (
+  id: number,
+  data: ResponderSolicitudVeterinariaDto
+) =>
+  fetchJson<ApiResponse<SolicitudVeterinariaDto>>(
+    `/solicitudes-veterinarias/${id}/responder`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    }
+  );
 
 /* =========================
    ANIMALES / CATÁLOGOS

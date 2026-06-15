@@ -9,6 +9,7 @@ use App\Http\Controllers\AnimalController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\BitacoraController;
 use App\Http\Controllers\VeterinarioController;
+use App\Http\Controllers\SolicitudVeterinariaController;
 
 // RUTAS PÚBLICAS DE USUARIOS
 Route::prefix('usuarios')->group(function () {
@@ -42,7 +43,14 @@ Route::prefix('veterinario')->group(function () {
     Route::get('/animales', [VeterinarioController::class, 'animales']);
     Route::get('/animales/{id}', [VeterinarioController::class, 'detalleAnimal']);
 });
-
+// SOLICITUDES VETERINARIAS
+Route::prefix('solicitudes-veterinarias')->group(function () {
+    Route::get('/veterinarios-disponibles', [SolicitudVeterinariaController::class, 'veterinariosDisponibles']);
+    Route::post('/', [SolicitudVeterinariaController::class, 'crearSolicitud']);
+    Route::get('/ganadero', [SolicitudVeterinariaController::class, 'misSolicitudesGanadero']);
+    Route::get('/veterinario', [SolicitudVeterinariaController::class, 'misSolicitudesVeterinario']);
+    Route::patch('/{id}/responder', [SolicitudVeterinariaController::class, 'responderSolicitud']);
+});
     // FINCAS
     Route::prefix('fincas')->group(function () {
         Route::post('/', [FincaController::class, 'crearFinca']);

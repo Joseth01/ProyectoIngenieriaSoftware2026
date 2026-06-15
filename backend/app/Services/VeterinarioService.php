@@ -6,6 +6,7 @@ use App\Models\Animal;
 use App\Models\Finca;
 use App\Models\FincaVeterinario;
 use App\Models\PerfilVeterinario;
+use App\Models\SolicitudVeterinaria;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -61,14 +62,14 @@ class VeterinarioService
     }
 
     public function obtenerFincasAsignadas(User $veterinario): Collection
-{
-    return Finca::with([
-        'propietario:id,name,email',
-    ])
-        ->whereIn('id', $this->obtenerFincaIdsAsignadas($veterinario))
-        ->orderBy('nombre', 'asc')
-        ->get();
-}
+    {
+        return Finca::with([
+            'propietario:id,name,email',
+        ])
+            ->whereIn('id', $this->obtenerFincaIdsAsignadas($veterinario))
+            ->orderBy('nombre', 'asc')
+            ->get();
+    }
 
     public function obtenerAnimalesAsignados(User $veterinario): Collection
     {
@@ -85,13 +86,25 @@ class VeterinarioService
         User $veterinario,
         int $animalId
     ): ?Animal {
+        $fincaIds = $this->obtenerFincaIdsAsignadas($veterinario);
+
+        $animalTieneSolicitud = SolicitudVeterinaria::where('animal_id', $animalId)
+            ->where('veterinario_id', $veterinario->id)
+            ->exists();
+
         $animal = Animal::with([
             'raza',
             'finca',
             'pesajes.fuente',
         ])
             ->where('id', $animalId)
-            ->whereIn('finca_id', $this->obtenerFincaIdsAsignadas($veterinario))
+            ->where(function ($query) use ($fincaIds, $animalTieneSolicitud) {
+                $query->whereIn('finca_id', $fincaIds);
+
+                if ($animalTieneSolicitud) {
+                    $query->orWhereNotNull('id');
+                }
+            })
             ->first();
 
         if (!$animal) {

@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Throwable;
+use App\Models\SolicitudVeterinaria;
 
 class AuditoriaService
 {
@@ -149,6 +150,68 @@ class AuditoriaService
             request: $request
         );
     }
+    public function registrarCreacionSolicitudVeterinaria(
+    User $ganadero,
+    SolicitudVeterinaria $solicitud,
+    Request $request
+): void {
+    $this->registrar(
+        accion: 'CREAR_SOLICITUD_VETERINARIA',
+        modulo: 'Veterinario',
+        descripcion: 'El ganadero creó una solicitud de revisión veterinaria.',
+        entidadTipo: 'SolicitudVeterinaria',
+        entidadId: $solicitud->id,
+        datosAnteriores: null,
+        datosNuevos: [
+            'id' => $solicitud->id,
+            'animal_id' => $solicitud->animal_id,
+            'finca_id' => $solicitud->finca_id,
+            'ganadero_id' => $solicitud->ganadero_id,
+            'veterinario_id' => $solicitud->veterinario_id,
+            'motivo' => $solicitud->motivo,
+            'estado' => $solicitud->estado,
+            'fecha_solicitud' => $solicitud->fecha_solicitud,
+        ],
+        usuario: $ganadero,
+        request: $request
+    );
+}
+
+public function registrarRespuestaSolicitudVeterinaria(
+    User $veterinario,
+    SolicitudVeterinaria $solicitud,
+    array $datosAnteriores,
+    Request $request
+): void {
+    $accion = match ($solicitud->estado) {
+        'atendida' => 'ATENDER_SOLICITUD_VETERINARIA',
+        'rechazada' => 'RECHAZAR_SOLICITUD_VETERINARIA',
+        default => 'ACTUALIZAR_SOLICITUD_VETERINARIA',
+    };
+
+    $descripcion = match ($solicitud->estado) {
+        'atendida' => 'El veterinario marcó una solicitud veterinaria como atendida.',
+        'rechazada' => 'El veterinario rechazó una solicitud veterinaria.',
+        default => 'El veterinario actualizó el estado de una solicitud veterinaria.',
+    };
+
+    $this->registrar(
+        accion: $accion,
+        modulo: 'Veterinario',
+        descripcion: $descripcion,
+        entidadTipo: 'SolicitudVeterinaria',
+        entidadId: $solicitud->id,
+        datosAnteriores: $datosAnteriores,
+        datosNuevos: [
+            'id' => $solicitud->id,
+            'estado' => $solicitud->estado,
+            'respuesta_veterinario' => $solicitud->respuesta_veterinario,
+            'fecha_atencion' => $solicitud->fecha_atencion,
+        ],
+        usuario: $veterinario,
+        request: $request
+    );
+}
 
     public function listarBitacorasAdmin()
     {
@@ -174,4 +237,5 @@ class AuditoriaService
             ->limit(100)
             ->get();
     }
+
 }

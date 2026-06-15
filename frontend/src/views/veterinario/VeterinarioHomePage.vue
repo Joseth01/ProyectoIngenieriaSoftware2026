@@ -8,7 +8,7 @@
             <p class="eyebrow">BovWeight CR · Médico</p>
             <h1>Panel veterinario</h1>
             <p class="subtitle">
-              Seguimiento de fincas, animales e historial de peso.
+              Seguimiento de fincas, animales, historial de peso y solicitudes ganaderas.
             </p>
           </div>
 
@@ -64,6 +64,245 @@
               <p>Animales disponibles</p>
               <strong>{{ perfil?.total_animales || 0 }}</strong>
             </article>
+
+            <article class="stat-card">
+              <span class="stat-icon">📬</span>
+              <p>Solicitudes activas</p>
+              <strong>{{ solicitudesActivas.length }}</strong>
+            </article>
+
+            <article class="stat-card">
+              <span class="stat-icon">🩺</span>
+              <p>Atenciones realizadas</p>
+              <strong>{{ historialAtenciones.length }}</strong>
+            </article>
+          </section>
+
+          <section class="section-card">
+            <div class="section-head">
+              <div>
+                <p class="section-kicker">Solicitudes ganaderas</p>
+                <h3>Solicitudes activas</h3>
+              </div>
+            </div>
+
+            <div v-if="solicitudesActivas.length === 0" class="empty">
+              No tiene solicitudes pendientes o en revisión.
+            </div>
+
+            <div v-else class="request-list">
+              <article
+                v-for="solicitud in solicitudesActivas"
+                :key="solicitud.id"
+                class="request-card"
+              >
+                <div class="request-head">
+                  <div>
+                    <p class="request-kicker">
+                      Solicitud #{{ solicitud.id }}
+                    </p>
+
+                    <h4>
+                      {{ solicitud.animal?.nombre || 'Animal no disponible' }}
+                    </h4>
+
+                    <p>
+                      Arete:
+                      <strong>{{ solicitud.animal?.numero_arete || 'No registrado' }}</strong>
+                    </p>
+
+                    <p>
+                      Finca:
+                      <strong>{{ obtenerNombreFincaSolicitud(solicitud) }}</strong>
+                    </p>
+
+                    <p>
+                      Ganadero:
+                      <strong>{{ solicitud.ganadero?.name || 'No disponible' }}</strong>
+                    </p>
+
+                    <p>
+                      Fecha solicitud:
+                      <strong>{{ formatearFechaSolicitud(solicitud.fecha_solicitud || solicitud.created_at) }}</strong>
+                    </p>
+                  </div>
+
+                  <span
+                    class="status-pill"
+                    :class="claseEstadoSolicitud(solicitud.estado)"
+                  >
+                    {{ textoEstadoSolicitud(solicitud.estado) }}
+                  </span>
+                </div>
+
+                <div class="request-body">
+                  <span>Motivo</span>
+                  <p>{{ solicitud.motivo }}</p>
+                </div>
+
+                <textarea
+                  v-model.trim="respuestasSolicitudes[solicitud.id]"
+                  class="response-input"
+                  rows="3"
+                  placeholder="Escribe una respuesta o recomendación..."
+                ></textarea>
+
+                <div class="request-actions">
+                  <button
+                    class="ghost-btn"
+                    @click="abrirAnimal(solicitud.animal_id)"
+                  >
+                    Ver animal
+                  </button>
+
+                  <button
+                    v-if="solicitud.estado === 'pendiente'"
+                    class="soft-btn"
+                    :disabled="savingSolicitudId === solicitud.id"
+                    @click="actualizarSolicitud(solicitud.id, 'en_revision')"
+                  >
+                    En revisión
+                  </button>
+
+                  <button
+                    class="primary-btn mini"
+                    :disabled="savingSolicitudId === solicitud.id"
+                    @click="actualizarSolicitud(solicitud.id, 'atendida')"
+                  >
+                    Atendida
+                  </button>
+
+                  <button
+                    class="danger-btn"
+                    :disabled="savingSolicitudId === solicitud.id"
+                    @click="actualizarSolicitud(solicitud.id, 'rechazada')"
+                  >
+                    Rechazar
+                  </button>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="section-card">
+            <div class="section-head">
+              <div>
+                <p class="section-kicker">Historial clínico</p>
+                <h3>Animales atendidos</h3>
+              </div>
+            </div>
+
+            <div v-if="historialAtenciones.length === 0" class="empty">
+              Todavía no hay animales atendidos por solicitudes.
+            </div>
+
+            <div v-else class="history-grid">
+              <article
+                v-for="solicitud in historialAtenciones"
+                :key="solicitud.id"
+                class="history-card"
+              >
+                <div class="history-head">
+                  <div class="history-avatar">
+                    {{ inicialAnimalSolicitud(solicitud) }}
+                  </div>
+
+                  <div class="history-info">
+                    <p class="request-kicker">
+                      Atención #{{ solicitud.id }}
+                    </p>
+
+                    <h4>
+                      {{ solicitud.animal?.nombre || 'Animal no disponible' }}
+                    </h4>
+
+                    <p>
+                      Arete: {{ solicitud.animal?.numero_arete || 'No registrado' }}
+                    </p>
+
+                    <p>
+                      Finca: {{ obtenerNombreFincaSolicitud(solicitud) }}
+                    </p>
+
+                    <p>
+                      Ganadero: {{ solicitud.ganadero?.name || 'No disponible' }}
+                    </p>
+                  </div>
+
+                  <span
+                    class="status-pill"
+                    :class="claseEstadoSolicitud(solicitud.estado)"
+                  >
+                    {{ textoEstadoSolicitud(solicitud.estado) }}
+                  </span>
+                </div>
+
+                <div class="history-detail">
+                  <span>Motivo original</span>
+                  <p>{{ solicitud.motivo }}</p>
+                </div>
+
+                <div class="history-detail">
+                  <span>Respuesta veterinaria</span>
+                  <p>{{ solicitud.respuesta_veterinario || 'Sin respuesta registrada.' }}</p>
+                </div>
+
+                <div class="history-meta">
+                  <span>
+                    Solicitud: {{ formatearFechaSolicitud(solicitud.fecha_solicitud || solicitud.created_at) }}
+                  </span>
+
+                  <span>
+                    Atención: {{ formatearFechaSolicitud(solicitud.fecha_atencion || solicitud.updated_at) }}
+                  </span>
+                </div>
+
+                <div class="request-actions">
+                  <button
+                    class="ghost-btn"
+                    @click="abrirAnimal(solicitud.animal_id)"
+                  >
+                    Ver animal
+                  </button>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="section-card">
+            <div class="section-head">
+              <div>
+                <p class="section-kicker">Fincas atendidas</p>
+                <h3>Fincas visitadas por solicitudes</h3>
+              </div>
+            </div>
+
+            <div v-if="fincasAtendidasPorSolicitudes.length === 0" class="empty">
+              Aún no hay fincas atendidas por medio de solicitudes veterinarias.
+            </div>
+
+            <div v-else class="farm-list">
+              <article
+                v-for="item in fincasAtendidasPorSolicitudes"
+                :key="item.fincaId"
+                class="farm-card attended-farm"
+              >
+                <div>
+                  <h4>{{ item.nombre }}</h4>
+                  <p>{{ item.ubicacion || 'Ubicación no registrada' }}</p>
+                  <small>
+                    Ganadero: {{ item.ganadero || 'No disponible' }}
+                  </small>
+                  <small>
+                    Atenciones realizadas: {{ item.totalAtenciones }}
+                  </small>
+                </div>
+
+                <span class="farm-badge attended">
+                  Atendida
+                </span>
+              </article>
+            </div>
           </section>
 
           <section class="section-card">
@@ -172,7 +411,7 @@
           <section class="section-card">
             <div class="section-head">
               <div>
-                <p class="section-kicker">Animales</p>
+                <p class="section-kicker">Animales asignados</p>
                 <h3>Animales de fincas asignadas</h3>
               </div>
 
@@ -234,9 +473,14 @@ import {
   actualizarPerfilVeterinario,
   getVeterinarioFincas,
   getVeterinarioAnimales,
+  getSolicitudesVeterinariasVeterinario,
+  responderSolicitudVeterinaria,
   limpiarSesion,
+  formatFecha,
   type AnimalDto,
   type FincaDto,
+  type SolicitudVeterinariaDto,
+  type EstadoSolicitudVeterinaria,
   type VeterinarioPerfilDto,
 } from '@/services/api';
 
@@ -244,6 +488,7 @@ const router = useRouter();
 
 const loading = ref(true);
 const savingPerfil = ref(false);
+const savingSolicitudId = ref<number | null>(null);
 const errorMsg = ref('');
 const editandoPerfil = ref(false);
 const busqueda = ref('');
@@ -251,6 +496,9 @@ const busqueda = ref('');
 const perfil = ref<VeterinarioPerfilDto | null>(null);
 const fincas = ref<FincaDto[]>([]);
 const animales = ref<AnimalDto[]>([]);
+const solicitudes = ref<SolicitudVeterinariaDto[]>([]);
+
+const respuestasSolicitudes = reactive<Record<number, string>>({});
 
 const formPerfil = reactive({
   codigo_colegiado: '',
@@ -280,8 +528,128 @@ const animalesFiltrados = computed(() => {
   });
 });
 
+const solicitudesActivas = computed(() =>
+  solicitudes.value.filter((solicitud) =>
+    solicitud.estado === 'pendiente' ||
+    solicitud.estado === 'en_revision'
+  )
+);
+
+const historialAtenciones = computed(() =>
+  solicitudes.value.filter((solicitud) =>
+    solicitud.estado === 'atendida' ||
+    solicitud.estado === 'rechazada'
+  )
+);
+
+const fincasAtendidasPorSolicitudes = computed(() => {
+  const mapa = new Map<number, {
+    fincaId: number;
+    nombre: string;
+    ubicacion: string | null;
+    ganadero: string | null;
+    totalAtenciones: number;
+  }>();
+
+  historialAtenciones.value.forEach((solicitud) => {
+    const fincaId = Number(solicitud.finca_id);
+
+    if (!fincaId) {
+      return;
+    }
+
+    const fincaNombre =
+      solicitud.finca?.nombre ||
+      solicitud.animal?.finca?.nombre ||
+      'Finca no registrada';
+
+    const fincaUbicacion =
+      solicitud.finca?.ubicacion ||
+      solicitud.animal?.finca?.ubicacion ||
+      null;
+
+    const ganaderoNombre =
+      solicitud.ganadero?.name || null;
+
+    const existente = mapa.get(fincaId);
+
+    if (existente) {
+      existente.totalAtenciones += 1;
+      return;
+    }
+
+    mapa.set(fincaId, {
+      fincaId,
+      nombre: fincaNombre,
+      ubicacion: fincaUbicacion,
+      ganadero: ganaderoNombre,
+      totalAtenciones: 1,
+    });
+  });
+
+  return Array.from(mapa.values());
+});
+
 function obtenerNombrePropietario(finca: FincaDto): string {
   return finca.propietario?.name || finca.usuario?.name || 'No disponible';
+}
+
+function obtenerNombreFincaSolicitud(solicitud: SolicitudVeterinariaDto): string {
+  return solicitud.finca?.nombre ||
+    solicitud.animal?.finca?.nombre ||
+    'No registrada';
+}
+
+function inicialAnimalSolicitud(solicitud: SolicitudVeterinariaDto): string {
+  const base =
+    solicitud.animal?.nombre ||
+    solicitud.animal?.numero_arete ||
+    'AN';
+
+  return base
+    .trim()
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((parte) => parte[0])
+    .join('')
+    .toUpperCase() || 'AN';
+}
+
+function formatearFechaSolicitud(valor: string | null | undefined): string {
+  return formatFecha(valor);
+}
+
+function textoEstadoSolicitud(estado: EstadoSolicitudVeterinaria): string {
+  if (estado === 'pendiente') {
+    return 'Pendiente';
+  }
+
+  if (estado === 'en_revision') {
+    return 'En revisión';
+  }
+
+  if (estado === 'atendida') {
+    return 'Atendida';
+  }
+
+  return 'Rechazada';
+}
+
+function claseEstadoSolicitud(estado: EstadoSolicitudVeterinaria): string {
+  if (estado === 'pendiente') {
+    return 'status-pending';
+  }
+
+  if (estado === 'en_revision') {
+    return 'status-review';
+  }
+
+  if (estado === 'atendida') {
+    return 'status-done';
+  }
+
+  return 'status-rejected';
 }
 
 function cargarFormularioPerfil() {
@@ -293,6 +661,15 @@ function cargarFormularioPerfil() {
 
   formPerfil.especialidad =
     perfil.value?.perfil_veterinario?.especialidad || '';
+}
+
+function prepararRespuestasSolicitudes() {
+  solicitudes.value.forEach((solicitud) => {
+    if (respuestasSolicitudes[solicitud.id] === undefined) {
+      respuestasSolicitudes[solicitud.id] =
+        solicitud.respuesta_veterinario || '';
+    }
+  });
 }
 
 function toggleEditarPerfil() {
@@ -312,17 +689,21 @@ async function cargarDatos() {
       perfilResp,
       fincasResp,
       animalesResp,
+      solicitudesResp,
     ] = await Promise.all([
       getPerfilVeterinario(),
       getVeterinarioFincas(),
       getVeterinarioAnimales(),
+      getSolicitudesVeterinariasVeterinario(),
     ]);
 
     perfil.value = perfilResp.datos;
     fincas.value = fincasResp.datos || [];
     animales.value = animalesResp.datos || [];
+    solicitudes.value = solicitudesResp.datos || [];
 
     cargarFormularioPerfil();
+    prepararRespuestasSolicitudes();
   } catch (error: unknown) {
     errorMsg.value = error instanceof Error
       ? error.message
@@ -354,6 +735,41 @@ async function guardarPerfil() {
       : 'No se pudo actualizar el perfil veterinario.';
   } finally {
     savingPerfil.value = false;
+  }
+}
+
+async function actualizarSolicitud(
+  id: number,
+  estado: 'en_revision' | 'atendida' | 'rechazada'
+) {
+  savingSolicitudId.value = id;
+  errorMsg.value = '';
+
+  try {
+    const respuesta = respuestasSolicitudes[id] || null;
+
+    const resp = await responderSolicitudVeterinaria(
+      id,
+      {
+        estado,
+        respuesta_veterinario: respuesta,
+      }
+    );
+
+    solicitudes.value = solicitudes.value.map((solicitud) =>
+      solicitud.id === id
+        ? resp.datos
+        : solicitud
+    );
+
+    respuestasSolicitudes[id] =
+      resp.datos.respuesta_veterinario || '';
+  } catch (error: unknown) {
+    errorMsg.value = error instanceof Error
+      ? error.message
+      : 'No se pudo actualizar la solicitud veterinaria.';
+  } finally {
+    savingSolicitudId.value = null;
   }
 }
 
@@ -400,7 +816,8 @@ onIonViewWillEnter(() => {
 
 .eyebrow,
 .section-kicker,
-.profile-label {
+.profile-label,
+.request-kicker {
   margin: 0;
   font-size: .72rem;
   text-transform: uppercase;
@@ -423,7 +840,9 @@ onIonViewWillEnter(() => {
 
 .logout-btn,
 .ghost-btn,
-.primary-btn {
+.primary-btn,
+.soft-btn,
+.danger-btn {
   border: none;
   font-family: inherit;
   cursor: pointer;
@@ -491,9 +910,14 @@ onIonViewWillEnter(() => {
   font-weight: 800;
 }
 
+.farm-badge.attended {
+  background: #e8f1ff;
+  color: #1e4f91;
+}
+
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 14px;
   margin-top: 18px;
 }
@@ -540,6 +964,20 @@ onIonViewWillEnter(() => {
   border-radius: 12px;
 }
 
+.soft-btn {
+  background: #e8f1ff;
+  color: #1e4f91;
+  padding: 9px 13px;
+  border-radius: 12px;
+}
+
+.danger-btn {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 9px 13px;
+  border-radius: 12px;
+}
+
 .primary-btn {
   background: linear-gradient(135deg, #12321f, #2c7a4a);
   color: white;
@@ -547,12 +985,21 @@ onIonViewWillEnter(() => {
   padding: 12px 16px;
 }
 
+.primary-btn.mini {
+  padding: 9px 13px;
+  border-radius: 12px;
+}
+
 .primary-btn.full {
   width: 100%;
 }
 
-.primary-btn:disabled {
+.primary-btn:disabled,
+.ghost-btn:disabled,
+.soft-btn:disabled,
+.danger-btn:disabled {
   opacity: .65;
+  cursor: not-allowed;
 }
 
 .info-list {
@@ -598,7 +1045,8 @@ onIonViewWillEnter(() => {
 }
 
 .form-grid input,
-.search-input {
+.search-input,
+.response-input {
   border: 1.5px solid #dce7df;
   background: #f7fbf8;
   border-radius: 14px;
@@ -607,12 +1055,22 @@ onIonViewWillEnter(() => {
   font-family: inherit;
 }
 
+.response-input {
+  width: 100%;
+  resize: vertical;
+  min-height: 84px;
+  margin-top: 12px;
+  box-sizing: border-box;
+}
+
 .search-input {
   min-width: 210px;
 }
 
 .farm-list,
-.animal-list {
+.animal-list,
+.request-list,
+.history-grid {
   display: grid;
   gap: 10px;
 }
@@ -624,14 +1082,23 @@ onIonViewWillEnter(() => {
   align-items: center;
 }
 
+.attended-farm small {
+  display: block;
+  margin-top: 3px;
+}
+
 .farm-card h4,
-.animal-card h4 {
+.animal-card h4,
+.request-card h4,
+.history-card h4 {
   margin: 0 0 4px;
   color: #12321f;
 }
 
 .farm-card p,
-.animal-card p {
+.animal-card p,
+.request-card p,
+.history-card p {
   margin: 0 0 3px;
   color: #66736b;
 }
@@ -673,6 +1140,122 @@ onIonViewWillEnter(() => {
   color: #2c7a4a;
 }
 
+.request-card,
+.history-card {
+  border: 1px solid #e6ece8;
+  background: #fbfdfb;
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.request-head,
+.history-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.history-head {
+  align-items: flex-start;
+}
+
+.history-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: #e9f8ef;
+  color: #1d6b3c;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  flex-shrink: 0;
+}
+
+.history-info {
+  flex: 1;
+}
+
+.request-body,
+.request-response,
+.history-detail {
+  margin-top: 12px;
+  background: white;
+  border-radius: 14px;
+  padding: 12px;
+  border: 1px solid #edf2ef;
+}
+
+.request-body span,
+.request-response span,
+.history-detail span {
+  display: block;
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-weight: 900;
+  color: #829086;
+  margin-bottom: 5px;
+}
+
+.request-body p,
+.request-response p,
+.history-detail p {
+  color: #33443a;
+  line-height: 1.45;
+}
+
+.history-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.history-meta span {
+  background: #eef6f1;
+  color: #1d6b3c;
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 800;
+}
+
+.request-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.status-pill {
+  height: fit-content;
+  padding: 7px 11px;
+  border-radius: 999px;
+  font-size: .75rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.status-pending {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.status-review {
+  background: #e8f1ff;
+  color: #1e4f91;
+}
+
+.status-done {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-rejected {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 .empty {
   padding: 18px;
   border-radius: 16px;
@@ -705,6 +1288,12 @@ onIonViewWillEnter(() => {
   }
 }
 
+@media (max-width: 900px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 720px) {
   .page {
     padding: 16px;
@@ -713,7 +1302,9 @@ onIonViewWillEnter(() => {
   .topbar,
   .profile-card,
   .section-head,
-  .farm-card {
+  .farm-card,
+  .request-head,
+  .history-head {
     flex-direction: column;
     align-items: stretch;
   }
@@ -732,6 +1323,14 @@ onIonViewWillEnter(() => {
 
   .info-item strong {
     text-align: left;
+  }
+
+  .request-actions {
+    flex-direction: column;
+  }
+
+  .history-meta {
+    flex-direction: column;
   }
 }
 </style>
