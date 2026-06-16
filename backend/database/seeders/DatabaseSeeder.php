@@ -21,7 +21,13 @@ class DatabaseSeeder extends Seeder
             FuentesPesajeSeeder::class,
         ]);
 
-        // Usuario de prueba (solo si no existe)
+        // Usuario administrador (solo si no existe)
+        User::firstOrCreate(
+            ['email' => 'admin@bovweight.cr'],
+            ['name' => 'Administrador', 'password' => 'Admin1234', 'rol' => 'admin', 'activo' => true]
+        );
+
+        // Usuario de prueba ganadero (solo si no existe)
         User::firstOrCreate(
             ['email' => 'test@example.com'],
             ['name' => 'Test User', 'password' => 'password123', 'rol' => 'ganadero']
