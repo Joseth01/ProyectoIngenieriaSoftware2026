@@ -15,11 +15,16 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        // Catálogos base (idempotentes): razas y fuentes de pesaje
+        $this->call([
+            RazaSeeder::class,
+            FuentesPesajeSeeder::class,
         ]);
+
+        // Usuario de prueba (solo si no existe)
+        User::firstOrCreate(
+            ['email' => 'test@example.com'],
+            ['name' => 'Test User', 'password' => 'password123', 'rol' => 'ganadero']
+        );
     }
 }
