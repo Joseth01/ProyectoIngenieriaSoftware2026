@@ -1,4 +1,8 @@
-const API_BASE = 'http://127.0.0.1:8000/api';
+// La URL del backend se toma de VITE_API_URL (archivo .env / .env.production).
+// Si no está definida, usa el backend local para desarrollo.
+// IMPORTANTE: en el APK debe apuntar al servidor desplegado, NO a 127.0.0.1
+// (en el celular, 127.0.0.1 es el propio teléfono).
+const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
 export type RolUsuario = 'admin' | 'ganadero' | 'veterinario';
 

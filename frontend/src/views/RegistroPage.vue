@@ -139,6 +139,8 @@ import {
   IonContent
 } from '@ionic/vue';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+
 const router = useRouter();
 
 const nombre = ref('');
@@ -178,7 +180,7 @@ const registrar = async () => {
 
     const response = await axios.post(
 
-      'http://127.0.0.1:8000/api/usuarios/registro',
+      `${API_URL}/usuarios/registro`,
 
       {
         name: nombre.value,
