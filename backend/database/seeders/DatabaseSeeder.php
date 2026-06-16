@@ -27,6 +27,12 @@ class DatabaseSeeder extends Seeder
             ['name' => 'Administrador', 'password' => 'Admin1234', 'rol' => 'admin', 'activo' => true]
         );
 
+        // Usuario veterinario de prueba (el PerfilVeterinario se autocrea al entrar)
+        User::firstOrCreate(
+            ['email' => 'vet@bovweight.cr'],
+            ['name' => 'Dr. Veterinario', 'password' => 'Vet1234', 'rol' => 'veterinario', 'activo' => true]
+        );
+
         // Usuario de prueba ganadero (solo si no existe)
         User::firstOrCreate(
             ['email' => 'test@example.com'],
