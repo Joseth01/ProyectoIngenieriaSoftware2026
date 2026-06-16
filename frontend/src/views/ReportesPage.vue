@@ -603,20 +603,18 @@ const promedioStr = computed(() => {
 });
 
 const crecimientoStr = computed(() => {
-  const arr = barras.value;
+  // Solo meses con pesajes; ignoramos los meses vacíos del inicio del periodo
+  const conDatos = barras.value.filter((b) => b.prom > 0);
 
-  if (
-    arr.length < 2 ||
-    arr[0].prom === 0
-  ) {
+  // Se necesitan al menos 2 meses con datos para calcular crecimiento
+  if (conDatos.length < 2) {
     return '—';
   }
 
-  const crec =
-    (
-      (arr[arr.length - 1].prom - arr[0].prom) /
-      Math.max(arr[0].prom, 1)
-    ) * 100;
+  const primero = conDatos[0].prom;
+  const ultimo = conDatos[conDatos.length - 1].prom;
+
+  const crec = ((ultimo - primero) / primero) * 100;
 
   return `${crec >= 0 ? '+' : ''}${crec.toFixed(1)}%`;
 });
